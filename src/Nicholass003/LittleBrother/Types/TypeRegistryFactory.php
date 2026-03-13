@@ -29,10 +29,15 @@ use Nicholass003\LittleBrother\Convert\Item\ItemRuntimeIdMapper;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
+use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
+use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
 
 final class TypeRegistryFactory{
 
 	private TypeRegistry $baseRegistry;
+	private array $inboundCache = [];
+	private array $outboundCache = [];
 
 	public function __construct(
 		TypeRegistry $baseRegistry,
@@ -48,7 +53,7 @@ final class TypeRegistryFactory{
 	 *   clientRuntimeId → serverRuntimeId
 	 */
 	public function createForInbound(int $clientProtocol) : TypeRegistry{
-		return $this->create($clientProtocol, inbound: true);
+		return $this->inboundCache[$clientProtocol] ??= $this->create($clientProtocol, inbound: true);
 	}
 
 	/**
@@ -56,7 +61,7 @@ final class TypeRegistryFactory{
 	 *   serverRuntimeId → clientRuntimeId
 	 */
 	public function createForOutbound(int $clientProtocol) : TypeRegistry{
-		return $this->create($clientProtocol, inbound: false);
+		return $this->outboundCache[$clientProtocol] ??= $this->create($clientProtocol, inbound: false);
 	}
 
 	private function create(int $clientProtocol, bool $inbound) : TypeRegistry{
@@ -92,6 +97,38 @@ final class TypeRegistryFactory{
 			},
 			writer: static function(ByteBufferWriter $out, int $id, int $protocol) : void{
 				VarInt::writeSignedInt($out, $id);
+			}
+		);
+
+		$registry->register(
+			'item_stack_wrapper',
+			reader: static function(ByteBufferReader $in, int $protocol) use ($itemMapper, $clientProtocol, $inbound) : ItemStackWrapper{
+				$wrapper = CommonTypes::getItemStackWrapper($in);
+				$stack = $wrapper->getItemStack();
+
+				if($stack->isNull()) return $wrapper;
+
+				$translator = $itemMapper->get($clientProtocol);
+				if($translator === null) return $wrapper;
+
+				$remappedId = $inbound
+					? $translator->clientToServer($stack->getId())
+					: $translator->serverToClient($stack->getId());
+
+				if($remappedId === $stack->getId()) return $wrapper;
+
+				$remappedStack = new ItemStack(
+					$remappedId,
+					$stack->getMeta(),
+					$stack->getCount(),
+					$stack->getBlockRuntimeId(),
+					$stack->getRawExtraData()
+				);
+
+				return new ItemStackWrapper($wrapper->getStackId(), $remappedStack);
+			},
+			writer: static function(ByteBufferWriter $out, ItemStackWrapper $wrapper, int $protocol) : void{
+				CommonTypes::putItemStackWrapper($out, $wrapper);
 			}
 		);
 

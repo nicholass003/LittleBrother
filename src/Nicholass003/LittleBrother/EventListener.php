@@ -51,16 +51,6 @@ class EventListener implements Listener{
 	// Cached reflection for NetworkSession::$packetPool
 	private static ?\ReflectionProperty $packetPoolProp = null;
 
-	// Packet IDs that the incoming interpreter should NOT touch at all.
-	// These packets are sent before/outside of a normal game session,
-	// or have no formatting differences between protocols.
-	private const INBOUND_PASSTHROUGH_IDS = [
-		ProtocolInfo::LOGIN_PACKET,
-		ProtocolInfo::CLIENT_TO_SERVER_HANDSHAKE_PACKET,
-		ProtocolInfo::RESOURCE_PACK_CLIENT_RESPONSE_PACKET,
-		ProtocolInfo::REQUEST_NETWORK_SETTINGS_PACKET,
-	];
-
 	public function __construct(
 		private LittleBrother $plugin
 	){}
@@ -177,10 +167,10 @@ class EventListener implements Listener{
 		Debugger::debug('Packet Id : ' . $packetId,
 			$packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
 
-		if(in_array($packetId, self::INBOUND_PASSTHROUGH_IDS, true)) return;
-
 		if($protocol === null || $protocol === ProtocolInfo::CURRENT_PROTOCOL) return;
 		if(!in_array($protocol, ProtocolVersion::SUPPORTED_PROTOCOLS, true)) return;
+
+		if($this->plugin->getTranslator()->getManualRegistry()->get($packetId) === null) return;
 
 		$originalBuffer = $event->getPacketBuffer();
 		$translated = $this->plugin->getTranslator()->translateInbound($protocol, $originalBuffer);

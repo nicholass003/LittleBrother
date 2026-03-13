@@ -105,13 +105,6 @@ final class CommonTypesAdapter{
 			fn($out, $v, $protocol) => CommonTypes::putGameRules($out, $v, false)
 		);
 
-		// ItemStackWrapper
-		$registry->register(
-			"item_stack_wrapper",
-			fn($in, $protocol) => CommonTypes::getItemStackWrapper($in),
-			fn($out, $v, $protocol) => CommonTypes::putItemStackWrapper($out, $v)
-		);
-
 		// NBT
 		$registry->register(
 			"nbt",

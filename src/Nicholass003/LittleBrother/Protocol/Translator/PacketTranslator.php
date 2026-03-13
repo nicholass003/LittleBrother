@@ -202,4 +202,8 @@ final class PacketTranslator{
 
 		return $this->writer->getData();
 	}
+
+	public function getManualRegistry() : ManualPacketRegistry{
+		return $this->manual;
+	}
 }
