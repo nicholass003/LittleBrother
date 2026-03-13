@@ -24,8 +24,8 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother;
 
-use Nicholass003\LittleBrother\libs\_7b4812e48a6aeaac\bStats\PocketmineMp\Metrics;
-use Nicholass003\LittleBrother\libs\_7b4812e48a6aeaac\CortexPE\Commando\PacketHooker;
+use Nicholass003\LittleBrother\libs\_84402f41e7dd161a\bStats\PocketmineMp\Metrics;
+use Nicholass003\LittleBrother\libs\_84402f41e7dd161a\CortexPE\Commando\PacketHooker;
 use Nicholass003\LittleBrother\Cache\OutboundPacketCache;
 use Nicholass003\LittleBrother\Command\ProtocolCommand;
 use Nicholass003\LittleBrother\Convert\BedrockDataManager;
