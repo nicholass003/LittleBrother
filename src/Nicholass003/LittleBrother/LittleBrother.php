@@ -24,7 +24,8 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother;
 
-use Nicholass003\LittleBrother\libs\_109d0a64d68e2af4\CortexPE\Commando\PacketHooker;
+use Nicholass003\LittleBrother\libs\_0d7fc8f69a8a8fb1\bStats\PocketmineMp\Metrics;
+use Nicholass003\LittleBrother\libs\_0d7fc8f69a8a8fb1\CortexPE\Commando\PacketHooker;
 use Nicholass003\LittleBrother\Cache\OutboundPacketCache;
 use Nicholass003\LittleBrother\Command\ProtocolCommand;
 use Nicholass003\LittleBrother\Convert\BedrockDataManager;
@@ -108,6 +109,8 @@ class LittleBrother extends PluginBase{
 		$this->getScheduler()->scheduleRepeatingTask(
 			new ClosureTask(fn() => $this->cache->clear()), 20
 		);
+
+        (new Metrics($this, 30103));
 	}
 
 	private function registerCommands() : void{
