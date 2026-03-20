@@ -60,19 +60,20 @@ class AnimatePacketHandler extends ManualPacketHandler{
 
 	public function translateInbound(int $protocol, ByteBufferReader $in) : string{
 		$out = new ByteBufferWriter();
-		if($protocol >= ProtocolVersion::BE_1_21_130){
-			$action = Byte::readUnsigned($in);
-			Byte::writeUnsigned($out, $action);
-		}else{
+		if($protocol < ProtocolVersion::BE_1_21_130){
 			$action = VarInt::readSignedInt($in);
-		}
-		CommonTypes::putActorRuntimeId($out, CommonTypes::getActorRuntimeId($in));
-		LE::writeFloat($out, LE::readFloat($in));
-		if($protocol <= ProtocolVersion::BE_1_21_120){
+			Byte::writeUnsigned($out, $action);
+			CommonTypes::putActorRuntimeId($out, CommonTypes::getActorRuntimeId($in));
+			LE::writeFloat($out, LE::readFloat($in));
 			if($action === self::ACTION_ROW_LEFT || $action === self::ACTION_ROW_RIGHT){
 				LE::readFloat($in);
 			}
+			CommonTypes::writeOptional($out, null, CommonTypes::putString(...));
 		}else{
+			$action = Byte::readUnsigned($in);
+			Byte::writeUnsigned($out, $action);
+			CommonTypes::putActorRuntimeId($out, CommonTypes::getActorRuntimeId($in));
+			LE::writeFloat($out, LE::readFloat($in));
 			CommonTypes::writeOptional($out, CommonTypes::readOptional($in, CommonTypes::getString(...)), CommonTypes::putString(...));
 		}
 		return $out->getData();
