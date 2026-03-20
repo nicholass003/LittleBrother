@@ -40,13 +40,7 @@ namespace Nicholass003\LittleBrother\Protocol\Translator;
 
 interface RuntimePacketHandler{
 
-	public function translateOutbound(
-		int $protocol,
-		string $payload
-	) : string;
+	public function translateOutbound(int $protocol, string $payload) : string;
 
-	public function translateInbound(
-		int $protocol,
-		string $payload
-	) : string;
+	public function translateInbound(int $protocol, string $payload) : string;
 }

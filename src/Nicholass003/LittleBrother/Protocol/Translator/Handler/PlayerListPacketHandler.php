@@ -34,18 +34,11 @@ use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 
 final class PlayerListPacketHandler extends ManualPacketHandler{
 
-	public function translateInbound(
-		int $protocol,
-		ByteBufferReader $in
-	) : string{
+	public function translateInbound(int $protocol, ByteBufferReader $in) : string{
 		return $this->passthrough($in);
 	}
 
-	public function translateOutbound(
-		int $protocol,
-		ByteBufferReader $in
-	) : string{
-
+	public function translateOutbound(int $protocol, ByteBufferReader $in) : string{
 		$out = new ByteBufferWriter();
 
 		$type = Byte::readUnsigned($in);
@@ -55,9 +48,7 @@ final class PlayerListPacketHandler extends ManualPacketHandler{
 		VarInt::writeUnsignedInt($out, $count);
 
 		for($i = 0; $i < $count; $i++){
-
 			if($type === 0){ // TYPE_ADD
-
 				CommonTypes::putUUID($out, CommonTypes::getUUID($in));
 				CommonTypes::putActorUniqueId($out, CommonTypes::getActorUniqueId($in));
 
@@ -74,9 +65,7 @@ final class PlayerListPacketHandler extends ManualPacketHandler{
 				CommonTypes::putBool($out, CommonTypes::getBool($in));
 
 				LE::writeUnsignedInt($out, LE::readUnsignedInt($in));
-
 			}else{ // TYPE_REMOVE
-
 				CommonTypes::putUUID($out, CommonTypes::getUUID($in));
 			}
 		}

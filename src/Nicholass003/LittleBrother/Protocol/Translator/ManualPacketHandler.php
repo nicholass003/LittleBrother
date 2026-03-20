@@ -33,12 +33,6 @@ use pmmp\encoding\ByteBufferReader;
 
 
 
-
-
-
-
-
-
 abstract class ManualPacketHandler implements ManualPacketHandlerInterface{
 
 	protected function passthrough(ByteBufferReader $in) : string{

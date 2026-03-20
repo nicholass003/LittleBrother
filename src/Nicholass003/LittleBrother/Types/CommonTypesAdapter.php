@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Types;
 
+use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 
 final class CommonTypesAdapter{
@@ -32,84 +33,96 @@ final class CommonTypesAdapter{
 		// Scalar
 		$registry->register(
 			"string",
-			fn($in, $protocol) => CommonTypes::getString($in),
-			fn($out, $v, $protocol) => CommonTypes::putString($out, $v)
+			fn($in, $protocol, $context) => CommonTypes::getString($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putString($out, $v)
 		);
 		$registry->register(
 			"bool",
-			fn($in, $protocol) => CommonTypes::getBool($in),
-			fn($out, $v, $protocol) => CommonTypes::putBool($out, $v)
+			fn($in, $protocol, $context) => CommonTypes::getBool($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putBool($out, $v)
 		);
 
 		// Identity
 		$registry->register(
 			"uuid",
-			fn($in, $protocol) => CommonTypes::getUUID($in),
-			fn($out, $v, $protocol) => CommonTypes::putUUID($out, $v)
+			fn($in, $protocol, $context) => CommonTypes::getUUID($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putUUID($out, $v)
 		);
 
 		// Position / geometry
 		$registry->register(
 			"vector3",
-			fn($in, $protocol) => CommonTypes::getVector3($in),
-			fn($out, $v, $protocol) => CommonTypes::putVector3($out, $v)
+			fn($in, $protocol, $context) => CommonTypes::getVector3($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putVector3($out, $v)
 		);
 		$registry->register(
 			"vector2",
-			fn($in, $protocol) => CommonTypes::getVector2($in),
-			fn($out, $v, $protocol) => CommonTypes::putVector2($out, $v)
+			fn($in, $protocol, $context) => CommonTypes::getVector2($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putVector2($out, $v)
 		);
 		$registry->register(
 			"blockpos",
-			fn($in, $protocol) => CommonTypes::getBlockPosition($in),
-			fn($out, $v, $protocol) => CommonTypes::putBlockPosition($out, $v)
+			function($in, $protocol, $context) {
+				if($protocol >= ProtocolVersion::BE_1_26_10){
+					return CommonTypes::getSignedBlockPosition($in);
+				}
+				return CommonTypes::getBlockPosition($in);
+			},
+			function($out, $v, $protocol, $context) {
+				CommonTypes::putBlockPosition($out, $v);
+			}
 		);
 		$registry->register(
 			"signed_blockpos",
-			fn($in, $protocol) => CommonTypes::getSignedBlockPosition($in),
-			fn($out, $v, $protocol) => CommonTypes::putSignedBlockPosition($out, $v)
+			fn($in, $protocol, $context) => CommonTypes::getSignedBlockPosition($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putSignedBlockPosition($out, $v)
+		);
+		$registry->register(
+			"blockpos_legacy",
+			fn($in, $protocol, $context) => CommonTypes::getBlockPosition($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putBlockPosition($out, $v)
 		);
 
 		// ActorRuntimeId
 		$registry->register(
 			"actor_runtime_id",
-			fn($in, $protocol) => CommonTypes::getActorRuntimeId($in),
-			fn($out, $v, $protocol) => CommonTypes::putActorRuntimeId($out, $v)
+			fn($in, $protocol, $context) => CommonTypes::getActorRuntimeId($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putActorRuntimeId($out, $v)
 		);
 
 		// ActorUniqueId
 		$registry->register(
 			"actor_unique_id",
-			fn($in, $protocol) => CommonTypes::getActorUniqueId($in),
-			fn($out, $v, $protocol) => CommonTypes::putActorUniqueId($out, $v)
+			fn($in, $protocol, $context) => CommonTypes::getActorUniqueId($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putActorUniqueId($out, $v)
 		);
 
 		// EntityMetadata
 		$registry->register(
 			"entity_metadata",
-			fn($in, $protocol) => CommonTypes::getEntityMetadata($in),
-			fn($out, $v, $protocol) => CommonTypes::putEntityMetadata($out, $v)
+			fn($in, $protocol, $context) => CommonTypes::getEntityMetadata($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putEntityMetadata($out, $v)
 		);
 
 		// Skin
 		$registry->register(
 			"skin",
-			fn($in, $protocol) => CommonTypes::getSkin($in),
-			fn($out, $v, $protocol) => CommonTypes::putSkin($out, $v)
+			fn($in, $protocol, $context) => CommonTypes::getSkin($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putSkin($out, $v)
 		);
 
 		// GameRule
 		$registry->register(
 			"gamerules",
-			fn($in, $protocol) => CommonTypes::getGameRules($in, false),
-			fn($out, $v, $protocol) => CommonTypes::putGameRules($out, $v, false)
+			fn($in, $protocol, $context) => CommonTypes::getGameRules($in, false),
+			fn($out, $v, $protocol, $context) => CommonTypes::putGameRules($out, $v, false)
 		);
 
 		// NBT
 		$registry->register(
 			"nbt",
-			fn($in, $protocol) => CommonTypes::getNbtRoot($in),
-			fn($out, $v, $protocol) => throw new \RuntimeException(
+			fn($in, $protocol, $context) => CommonTypes::getNbtRoot($in),
+			fn($out, $v, $protocol, $context) => throw new \RuntimeException(
 				"NBT write not implemented. If a packet requires NBT writing, " .
 				"register it manually in ManualTypeRegistry as an opaque type."
 			)

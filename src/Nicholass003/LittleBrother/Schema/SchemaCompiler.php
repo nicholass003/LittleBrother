@@ -35,14 +35,16 @@ final class SchemaCompiler{
 		$instructions = [];
 
 		foreach($fields as $field){
-
 			$type = $field['type'] ?? null;
+
+			$since = $field['since'] ?? null;
+			$until = $field['until'] ?? null;
+			$default = $field['default'] ?? null;
 
 			/*
 			 * ARRAY
 			 */
 			if($type === 'array'){
-
 				if(!isset($field['countType'])){
 					$instructions[] = static function() : void{
 						throw new \RuntimeException("Cannot translate passthrough array");
@@ -51,34 +53,84 @@ final class SchemaCompiler{
 				}
 
 				$countType = $field['countType'];
+
 				$entryInstructions = $this->compile($field['entry'] ?? []);
 
-				$entryPipeline = static function(
+				$entryPipeline = function(
 					ByteBufferReader $in,
 					ByteBufferWriter $out,
 					TypeRegistry $types,
 					int $src,
-					int $dst
+					int $dst,
+					PacketContext $context
 				) use ($entryInstructions) : void{
-
 					foreach($entryInstructions as $op){
-						$op($in, $out, $types, $src, $dst);
+						$op($in, $out, $types, $src, $dst, $context);
 					}
 				};
 
-				$instructions[] = static function(
+				$instructions[] = function(
 					ByteBufferReader $in,
 					ByteBufferWriter $out,
 					TypeRegistry $types,
 					int $src,
-					int $dst
-				) use ($countType, $entryPipeline) : void{
+					int $dst,
+					PacketContext $context
+				) use ($countType, $entryInstructions, $entryPipeline, $since, $until, $default, $field) : void{
 
-					$count = $types->read($in, $countType, $src);
-					$types->write($out, $countType, $count, $dst);
+					$existsInSrc = true;
+					$existsInDst = true;
 
-					for($i = 0; $i < $count; $i++){
-						$entryPipeline($in, $out, $types, $src, $dst);
+					if($since !== null){
+						if($src < $since) $existsInSrc = false;
+						if($dst < $since) $existsInDst = false;
+					}
+
+					if($until !== null){
+						if($src > $until) $existsInSrc = false;
+						if($dst > $until) $existsInDst = false;
+					}
+
+					if(!$existsInSrc && !$existsInDst){
+						return;
+					}
+
+					if($existsInSrc){
+						$count = $types->read($in, $countType, $src, $context);
+
+						if(!empty($field['storeCountAs'])){
+							$context->set($field['storeCountAs'], $count);
+						}
+
+						if($existsInDst){
+							$types->write($out, $countType, $count, $dst, $context);
+
+							$collectValues = [];
+							$shouldCollect = !empty($field['collect'] ?? []);
+
+							for($i = 0; $i < $count; $i++){
+								$entryPipeline($in, $out, $types, $src, $dst, $context);
+
+								if($shouldCollect){
+									foreach($field['collect'] as $collectKey){
+										$collectValues[] = $context->get($collectKey);
+									}
+								}
+							}
+
+							if($shouldCollect && !empty($field['storeAs'])){
+								$context->set($field['storeAs'], $collectValues);
+							}
+						}else{
+							for($i = 0; $i < $count; $i++){
+								foreach($entryInstructions as $op){
+									$op($in, $out, $types, $src, $dst, $context);
+								}
+							}
+						}
+					}else{
+						$writeCount = $default ?? 0;
+						$types->write($out, $countType, $writeCount, $dst, $context);
 					}
 				};
 
@@ -96,32 +148,34 @@ final class SchemaCompiler{
 
 					$subInstructions = $this->compile([$value]);
 
-					$subPipeline = static function(
+					$subPipeline = function(
 						ByteBufferReader $in,
 						ByteBufferWriter $out,
 						TypeRegistry $types,
 						int $src,
-						int $dst
+						int $dst,
+						PacketContext $context
 					) use ($subInstructions) : void{
 
 						foreach($subInstructions as $op){
-							$op($in, $out, $types, $src, $dst);
+							$op($in, $out, $types, $src, $dst, $context);
 						}
 					};
 
-					$instructions[] = static function(
+					$instructions[] = function(
 						ByteBufferReader $in,
 						ByteBufferWriter $out,
 						TypeRegistry $types,
 						int $src,
-						int $dst
+						int $dst,
+						PacketContext $context
 					) use ($subPipeline) : void{
 
-						$has = $types->read($in, "bool", $src);
-						$types->write($out, "bool", $has, $dst);
+						$has = $types->read($in, "bool", $src, $context);
+						$types->write($out, "bool", $has, $dst, $context);
 
 						if($has){
-							$subPipeline($in, $out, $types, $src, $dst);
+							$subPipeline($in, $out, $types, $src, $dst, $context);
 						}
 					};
 
@@ -133,20 +187,21 @@ final class SchemaCompiler{
 				*/
 				$valueType = $value;
 
-				$instructions[] = static function(
+				$instructions[] = function(
 					ByteBufferReader $in,
 					ByteBufferWriter $out,
 					TypeRegistry $types,
 					int $src,
-					int $dst
+					int $dst,
+					PacketContext $context
 				) use ($valueType) : void{
 
-					$has = $types->read($in, "bool", $src);
-					$types->write($out, "bool", $has, $dst);
+					$has = $types->read($in, "bool", $src, $context);
+					$types->write($out, "bool", $has, $dst, $context);
 
 					if($has){
-						$v = $types->read($in, $valueType, $src);
-						$types->write($out, $valueType, $v, $dst);
+						$v = $types->read($in, $valueType, $src, $context);
+						$types->write($out, $valueType, $v, $dst, $context);
 					}
 				};
 
@@ -172,40 +227,46 @@ final class SchemaCompiler{
 	private function compileScalar(array $field) : callable{
 
 		$type = $field['type'];
+		$name = $field['name'] ?? null;
 		$since = $field['since'] ?? null;
 		$until = $field['until'] ?? null;
 		$default = $field['default'] ?? null;
+		$storeAs = $field['storeAs'] ?? $name;
 
 		return static function(
 			ByteBufferReader $in,
 			ByteBufferWriter $out,
 			TypeRegistry $types,
 			int $src,
-			int $dst
-		) use ($type, $since, $until, $default) : void{
+			int $dst,
+			PacketContext $context
+		) use ($type, $since, $until, $default, $storeAs) : void{
 
-			$inSrc = true;
-			$inDst = true;
+			$existsInSrc = true;
+			$existsInDst = true;
 
 			if($since !== null){
-				if($src < $since) $inSrc = false;
-				if($dst < $since) $inDst = false;
+				if($src < $since) $existsInSrc = false;
+				if($dst < $since) $existsInDst = false;
 			}
 
 			if($until !== null){
-				if($src > $until) $inSrc = false;
-				if($dst > $until) $inDst = false;
+				if($src > $until) $existsInSrc = false;
+				if($dst > $until) $existsInDst = false;
 			}
 
-			if($inSrc && $inDst){
-				$value = $types->read($in, $type, $src);
-				$types->write($out, $type, $value, $dst);
-			}
-			elseif($inSrc){
-				$types->read($in, $type, $src);
-			}
-			elseif($inDst){
-				$types->write($out, $type, $default, $dst);
+			if($existsInSrc){
+				$value = $types->read($in, $type, $src, $context);
+				$context->set($storeAs, $value);
+
+				if($existsInDst){
+					$types->write($out, $type, $value, $dst, $context);
+				}
+			}else{
+				if($existsInDst){
+					$types->write($out, $type, $default, $dst, $context);
+					$context->set($storeAs, $default);
+				}
 			}
 		};
 	}

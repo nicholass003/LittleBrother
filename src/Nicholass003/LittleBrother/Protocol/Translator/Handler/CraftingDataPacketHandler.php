@@ -38,33 +38,26 @@ use pocketmine\network\mcpe\protocol\types\recipe\SmithingTrimRecipe;
 
 final class CraftingDataPacketHandler extends ManualPacketHandler{
 
-	public function translateInbound(
-		int $protocol,
-		ByteBufferReader $reader
-	) : string{
-		return $reader->getUnreadLength() > 0
-			? $reader->readByteArray($reader->getUnreadLength())
+	public function translateInbound(int $protocol, ByteBufferReader $in) : string{
+		return $in->getUnreadLength() > 0
+			? $in->readByteArray($in->getUnreadLength())
 			: "";
 	}
 
-	public function translateOutbound(
-		int $protocol,
-		ByteBufferReader $reader
-	) : string{
-
+	public function translateOutbound(int $protocol, ByteBufferReader $in) : string{
 		$writer = new ByteBufferWriter();
 
 		/*
 		 * recipesWithTypeIds
 		 */
 
-		$recipeCount = VarInt::readUnsignedInt($reader);
+		$recipeCount = VarInt::readUnsignedInt($in);
 
 		VarInt::writeUnsignedInt($writer, $recipeCount);
 
 		for($i = 0; $i < $recipeCount; ++$i){
 
-			$type = VarInt::readSignedInt($reader);
+			$type = VarInt::readSignedInt($in);
 
 			VarInt::writeSignedInt($writer, $type);
 
@@ -73,34 +66,34 @@ final class CraftingDataPacketHandler extends ManualPacketHandler{
 				case 0: // shapeless
 				case 5:
 				case 6:
-					$recipe = ShapelessRecipe::decode($type, $reader);
+					$recipe = ShapelessRecipe::decode($type, $in);
 					$recipe->encode($writer);
 				break;
 
 				case 1: // shaped
 				case 7:
-					$recipe = ShapedRecipe::decode($type, $reader);
+					$recipe = ShapedRecipe::decode($type, $in);
 					$recipe->encode($writer);
 				break;
 
 				case 2: // furnace
 				case 3:
-					$recipe = FurnaceRecipe::decode($type, $reader);
+					$recipe = FurnaceRecipe::decode($type, $in);
 					$recipe->encode($writer);
 				break;
 
 				case 4:
-					$recipe = MultiRecipe::decode($type, $reader);
+					$recipe = MultiRecipe::decode($type, $in);
 					$recipe->encode($writer);
 				break;
 
 				case 8:
-					$recipe = SmithingTransformRecipe::decode($type, $reader);
+					$recipe = SmithingTransformRecipe::decode($type, $in);
 					$recipe->encode($writer);
 				break;
 
 				case 9:
-					$recipe = SmithingTrimRecipe::decode($type, $reader);
+					$recipe = SmithingTrimRecipe::decode($type, $in);
 					$recipe->encode($writer);
 				break;
 
@@ -113,18 +106,18 @@ final class CraftingDataPacketHandler extends ManualPacketHandler{
 		 * potionTypeRecipes
 		 */
 
-		$count = VarInt::readUnsignedInt($reader);
+		$count = VarInt::readUnsignedInt($in);
 
 		VarInt::writeUnsignedInt($writer, $count);
 
 		for($i = 0; $i < $count; ++$i){
 
-			$inputId = VarInt::readSignedInt($reader);
-			$inputMeta = VarInt::readSignedInt($reader);
-			$ingredientId = VarInt::readSignedInt($reader);
-			$ingredientMeta = VarInt::readSignedInt($reader);
-			$outputId = VarInt::readSignedInt($reader);
-			$outputMeta = VarInt::readSignedInt($reader);
+			$inputId = VarInt::readSignedInt($in);
+			$inputMeta = VarInt::readSignedInt($in);
+			$ingredientId = VarInt::readSignedInt($in);
+			$ingredientMeta = VarInt::readSignedInt($in);
+			$outputId = VarInt::readSignedInt($in);
+			$outputMeta = VarInt::readSignedInt($in);
 
 			VarInt::writeSignedInt($writer, $inputId);
 			VarInt::writeSignedInt($writer, $inputMeta);
@@ -138,15 +131,15 @@ final class CraftingDataPacketHandler extends ManualPacketHandler{
 		 * potionContainerRecipes
 		 */
 
-		$count = VarInt::readUnsignedInt($reader);
+		$count = VarInt::readUnsignedInt($in);
 
 		VarInt::writeUnsignedInt($writer, $count);
 
 		for($i = 0; $i < $count; ++$i){
 
-			$input = VarInt::readSignedInt($reader);
-			$ingredient = VarInt::readSignedInt($reader);
-			$output = VarInt::readSignedInt($reader);
+			$input = VarInt::readSignedInt($in);
+			$ingredient = VarInt::readSignedInt($in);
+			$output = VarInt::readSignedInt($in);
 
 			VarInt::writeSignedInt($writer, $input);
 			VarInt::writeSignedInt($writer, $ingredient);
@@ -157,24 +150,24 @@ final class CraftingDataPacketHandler extends ManualPacketHandler{
 		 * materialReducerRecipes
 		 */
 
-		$count = VarInt::readUnsignedInt($reader);
+		$count = VarInt::readUnsignedInt($in);
 
 		VarInt::writeUnsignedInt($writer, $count);
 
 		for($i = 0; $i < $count; ++$i){
 
-			$inputIdAndMeta = VarInt::readSignedInt($reader);
+			$inputIdAndMeta = VarInt::readSignedInt($in);
 
 			VarInt::writeSignedInt($writer, $inputIdAndMeta);
 
-			$outputCount = VarInt::readUnsignedInt($reader);
+			$outputCount = VarInt::readUnsignedInt($in);
 
 			VarInt::writeUnsignedInt($writer, $outputCount);
 
 			for($j = 0; $j < $outputCount; ++$j){
 
-				$itemId = VarInt::readSignedInt($reader);
-				$count = VarInt::readSignedInt($reader);
+				$itemId = VarInt::readSignedInt($in);
+				$count = VarInt::readSignedInt($in);
 
 				VarInt::writeSignedInt($writer, $itemId);
 				VarInt::writeSignedInt($writer, $count);
@@ -187,7 +180,7 @@ final class CraftingDataPacketHandler extends ManualPacketHandler{
 
 		CommonTypes::putBool(
 			$writer,
-			CommonTypes::getBool($reader)
+			CommonTypes::getBool($in)
 		);
 
 		return $writer->getData();

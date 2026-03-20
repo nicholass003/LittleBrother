@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Types;
 
+use pmmp\encoding\BE;
 use pmmp\encoding\Byte;
 use pmmp\encoding\LE;
 use pmmp\encoding\VarInt;
@@ -103,6 +104,48 @@ final class PrimitiveTypes{
 			"le:f64",
 			fn($in, $protocol) => LE::readDouble($in),
 			fn($out, $v, $protocol) => LE::writeDouble($out, $v)
+		);
+
+		$registry->register(
+			"be:i16",
+			fn($in, $protocol) => BE::readSignedShort($in),
+			fn($out, $v, $protocol) => BE::writeSignedShort($out, $v)
+		);
+		$registry->register(
+			"be:u16",
+			fn($in, $protocol) => BE::readUnsignedShort($in),
+			fn($out, $v, $protocol) => BE::writeUnsignedShort($out, $v)
+		);
+		$registry->register(
+			"be:i32",
+			fn($in, $protocol) => BE::readSignedInt($in),
+			fn($out, $v, $protocol) => BE::writeSignedInt($out, $v)
+		);
+		$registry->register(
+			"be:u32",
+			fn($in, $protocol) => BE::readUnsignedInt($in),
+			fn($out, $v, $protocol) => BE::writeUnsignedInt($out, $v)
+		);
+		$registry->register(
+			"be:i64",
+			fn($in, $protocol) => BE::readSignedLong($in),
+			fn($out, $v, $protocol) => BE::writeSignedLong($out, $v)
+		);
+		$registry->register(
+			"be:u64",
+			fn($in, $protocol) => BE::readUnsignedLong($in),
+			fn($out, $v, $protocol) => BE::writeUnsignedLong($out, $v)
+		);
+
+		$registry->register(
+			"be:f32",
+			fn($in, $protocol) => BE::readFloat($in),
+			fn($out, $v, $protocol) => BE::writeFloat($out, $v)
+		);
+		$registry->register(
+			"be:f64",
+			fn($in, $protocol) => BE::readDouble($in),
+			fn($out, $v, $protocol) => BE::writeDouble($out, $v)
 		);
 	}
 }

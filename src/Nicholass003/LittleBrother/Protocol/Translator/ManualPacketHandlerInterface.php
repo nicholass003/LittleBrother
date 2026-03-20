@@ -28,13 +28,7 @@ use pmmp\encoding\ByteBufferReader;
 
 interface ManualPacketHandlerInterface{
 
-	public function translateInbound(
-		int $protocol,
-		ByteBufferReader $reader
-	) : string;
+	public function translateInbound(int $protocol, ByteBufferReader $in) : string;
 
-	public function translateOutbound(
-		int $protocol,
-		ByteBufferReader $reader
-	) : string;
+	public function translateOutbound(int $protocol, ByteBufferReader $in) : string;
 }

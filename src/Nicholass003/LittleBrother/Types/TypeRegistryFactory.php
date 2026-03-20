@@ -24,8 +24,9 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Types;
 
-use Nicholass003\LittleBrother\Convert\Block\BlockRuntimeIdMapper;
+use Nicholass003\LittleBrother\Convert\Block\RuntimeBlockMapper;
 use Nicholass003\LittleBrother\Convert\Item\ItemRuntimeIdMapper;
+use Nicholass003\LittleBrother\Schema\PacketContext;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
@@ -41,7 +42,7 @@ final class TypeRegistryFactory{
 
 	public function __construct(
 		TypeRegistry $baseRegistry,
-		private BlockRuntimeIdMapper $blockMapper,
+		private RuntimeBlockMapper $blockMapper,
 		private ItemRuntimeIdMapper $itemMapper
 	){
 		$this->baseRegistry = $baseRegistry;
@@ -65,28 +66,26 @@ final class TypeRegistryFactory{
 	}
 
 	private function create(int $clientProtocol, bool $inbound) : TypeRegistry{
-		$registry = clone $this->baseRegistry;
+		$registry = $this->baseRegistry;
 		$blockMapper = $this->blockMapper;
 		$itemMapper = $this->itemMapper;
 
 		$registry->register(
 			'block_runtime_id',
-			reader: static function(ByteBufferReader $in, int $protocol) use ($blockMapper, $clientProtocol, $inbound) : int{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) use ($blockMapper, $clientProtocol, $inbound) : int{
 				$id = VarInt::readUnsignedInt($in);
-				$translator = $blockMapper->get($clientProtocol);
-				if($translator === null) return $id;
 				return $inbound
-					? $translator->clientToServer($id)
-					: $translator->serverToClient($id);
+					? $blockMapper->clientToServer($protocol, $id)
+					: $blockMapper->serverToClient($protocol, $id);
 			},
-			writer: static function(ByteBufferWriter $out, int $id, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, int $id, int $protocol, PacketContext $context) : void{
 				VarInt::writeUnsignedInt($out, $id);
 			}
 		);
 
 		$registry->register(
 			'item_runtime_id',
-			reader: static function(ByteBufferReader $in, int $protocol) use ($itemMapper, $clientProtocol, $inbound) : int{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) use ($itemMapper, $clientProtocol, $inbound) : int{
 				$id = VarInt::readSignedInt($in);
 				if($id === 0) return 0;
 				$translator = $itemMapper->get($clientProtocol);
@@ -95,14 +94,14 @@ final class TypeRegistryFactory{
 					? $translator->clientToServer($id)
 					: $translator->serverToClient($id);
 			},
-			writer: static function(ByteBufferWriter $out, int $id, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, int $id, int $protocol, PacketContext $context) : void{
 				VarInt::writeSignedInt($out, $id);
 			}
 		);
 
 		$registry->register(
 			'item_stack_wrapper',
-			reader: static function(ByteBufferReader $in, int $protocol) use ($itemMapper, $clientProtocol, $inbound) : ItemStackWrapper{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) use ($blockMapper, $itemMapper, $clientProtocol, $inbound) : ItemStackWrapper{
 				$wrapper = CommonTypes::getItemStackWrapper($in);
 				$stack = $wrapper->getItemStack();
 
@@ -116,12 +115,19 @@ final class TypeRegistryFactory{
 					: $translator->serverToClient($stack->getId());
 
 				if($remappedId === $stack->getId()) return $wrapper;
+				$blockRuntimeId = $stack->getBlockRuntimeId();
+
+				if($blockRuntimeId !== 0){
+						$blockRuntimeId = $inbound
+							? $blockMapper->clientToServer($protocol, $blockRuntimeId)
+							: $blockMapper->serverToClient($protocol, $blockRuntimeId);
+				}
 
 				$remappedStack = new ItemStack(
 					$remappedId,
 					$stack->getMeta(),
 					$stack->getCount(),
-					$stack->getBlockRuntimeId(),
+					$blockRuntimeId,
 					$stack->getRawExtraData()
 				);
 
@@ -133,5 +139,9 @@ final class TypeRegistryFactory{
 		);
 
 		return $registry;
+	}
+
+	public function getTypeRegistry() : TypeRegistry{
+		return $this->baseRegistry;
 	}
 }

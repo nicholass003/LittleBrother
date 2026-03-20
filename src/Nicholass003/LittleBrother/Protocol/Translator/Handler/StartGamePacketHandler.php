@@ -43,81 +43,90 @@ use pocketmine\network\mcpe\protocol\types\SpawnSettings;
 
 final class StartGamePacketHandler extends ManualPacketHandler{
 
-	public function translateInbound(
-		int $protocol,
-		ByteBufferReader $in
-	) : string{
+	public function translateInbound(int $protocol, ByteBufferReader $in) : string{
 		return $this->passthrough($in);
 	}
 
-	public function translateOutbound(
-		int $protocol,
-		ByteBufferReader $in
-	) : string{
-
+	public function translateOutbound(int $protocol, ByteBufferReader $in) : string{
 		$out = new ByteBufferWriter();
 
 		CommonTypes::putActorUniqueId($out, CommonTypes::getActorUniqueId($in));
 		CommonTypes::putActorRuntimeId($out, CommonTypes::getActorRuntimeId($in));
 
-		VarInt::writeSignedInt($out, VarInt::readSignedInt($in));
-
-		CommonTypes::putVector3($out, CommonTypes::getVector3($in));
-
-		LE::writeFloat($out, LE::readFloat($in));
-		LE::writeFloat($out, LE::readFloat($in));
+		VarInt::writeSignedInt($out, VarInt::readSignedInt($in)); // playerGamemode
+		CommonTypes::putVector3($out, CommonTypes::getVector3($in)); // playerPosition
+		LE::writeFloat($out, LE::readFloat($in)); // pitch
+		LE::writeFloat($out, LE::readFloat($in)); // yaw
 
 		$this->translateLevelSettings($in, $out, $protocol);
 
-		CommonTypes::putString($out, CommonTypes::getString($in));
-		CommonTypes::putString($out, CommonTypes::getString($in));
-		CommonTypes::putString($out, CommonTypes::getString($in));
-
-		CommonTypes::putBool($out, CommonTypes::getBool($in));
+		CommonTypes::putString($out, CommonTypes::getString($in)); // levelId
+		CommonTypes::putString($out, CommonTypes::getString($in)); // worldName
+		CommonTypes::putString($out, CommonTypes::getString($in)); // premiumWorldTemplateId
+		CommonTypes::putBool($out, CommonTypes::getBool($in)); // isTrial
 
 		PlayerMovementSettings::read($in)->write($out);
 
-		LE::writeUnsignedLong($out, LE::readUnsignedLong($in));
+		LE::writeUnsignedLong($out, LE::readUnsignedLong($in)); // currentTick
+		VarInt::writeSignedInt($out, VarInt::readSignedInt($in)); // enchantmentSeed
 
-		VarInt::writeSignedInt($out, VarInt::readSignedInt($in));
-
-		// block palette
+		// Block palette
 		$count = VarInt::readUnsignedInt($in);
 		VarInt::writeUnsignedInt($out, $count);
-
 		for($i = 0; $i < $count; $i++){
 			CommonTypes::putString($out, CommonTypes::getString($in));
 			$out->writeByteArray((new CacheableNbt(CommonTypes::getNbtCompoundRoot($in)))->getEncodedNbt());
 		}
 
-		CommonTypes::putString($out, CommonTypes::getString($in));
-		CommonTypes::putBool($out, CommonTypes::getBool($in));
-		CommonTypes::putString($out, CommonTypes::getString($in));
+		CommonTypes::putString($out, CommonTypes::getString($in)); // multiplayerCorrelationId
+		CommonTypes::putBool($out, CommonTypes::getBool($in)); // enableNewInventorySystem
+		CommonTypes::putString($out, CommonTypes::getString($in)); // serverSoftwareVersion
+		$out->writeByteArray((new CacheableNbt(CommonTypes::getNbtCompoundRoot($in)))->getEncodedNbt()); // playerActorProperties
+		LE::writeUnsignedLong($out, LE::readUnsignedLong($in)); // blockPaletteChecksum
+		CommonTypes::putUUID($out, CommonTypes::getUUID($in)); // worldTemplateId
+		CommonTypes::putBool($out, CommonTypes::getBool($in)); // enableClientSideChunkGeneration
 
-		$out->writeByteArray((new CacheableNbt(CommonTypes::getNbtCompoundRoot($in)))->getEncodedNbt());
+		CommonTypes::putBool($out, CommonTypes::getBool($in)); // blockNetworkIdsAreHashes
 
-		LE::writeUnsignedLong($out, LE::readUnsignedLong($in));
-
-		CommonTypes::putUUID($out, CommonTypes::getUUID($in));
-
-		CommonTypes::putBool($out, CommonTypes::getBool($in));
-		CommonTypes::putBool($out, CommonTypes::getBool($in));
+		if($protocol === ProtocolVersion::BE_1_21_120){
+			CommonTypes::putBool($out, false);
+		}
 
 		NetworkPermissions::decode($in)->encode($out);
 
-		CommonTypes::readOptional($in, ServerJoinInformation::read(...));
-		ServerTelemetryData::read($in);
+		// serverJoinInformation
+		$serverJoinInformation = CommonTypes::readOptional($in, ServerJoinInformation::read(...));
+		if($protocol >= ProtocolVersion::BE_1_26_0){
+			CommonTypes::writeOptional(
+				$out,
+				$serverJoinInformation,
+				fn(ByteBufferWriter $out, ServerJoinInformation $v) => $v->write($out)
+			);
+		}
+
+		// serverTelemetryData
+		$serverTelemetryData = ServerTelemetryData::read($in);
+		if($protocol >= ProtocolVersion::BE_1_26_0){
+			$serverTelemetryData->write($out);
+		}
 
 		return $out->getData();
 	}
+
 	private function translateLevelSettings(ByteBufferReader $in, ByteBufferWriter $out, int $protocol) : void{
 		LE::writeUnsignedLong($out, LE::readUnsignedLong($in));          // seed
-		SpawnSettings::read($in)->write($out);                           // spawnSettings
+		SpawnSettings::read($in)->write($out);
 		VarInt::writeSignedInt($out, VarInt::readSignedInt($in));        // generator
 		VarInt::writeSignedInt($out, VarInt::readSignedInt($in));        // worldGamemode
 		CommonTypes::putBool($out, CommonTypes::getBool($in));           // hardcore
 		VarInt::writeSignedInt($out, VarInt::readSignedInt($in));        // difficulty
-		CommonTypes::putBlockPosition($out, CommonTypes::getBlockPosition($in)); // spawnPosition
+		if($protocol >= ProtocolVersion::BE_1_26_10){
+			$pos = CommonTypes::getSignedBlockPosition($in);
+			CommonTypes::putBlockPosition($out, $pos);
+		}else{
+			$pos = CommonTypes::getBlockPosition($in);
+			CommonTypes::putBlockPosition($out, $pos);
+		}
 		CommonTypes::putBool($out, CommonTypes::getBool($in));           // hasAchievementsDisabled
 		VarInt::writeSignedInt($out, VarInt::readSignedInt($in));        // editorWorldType
 		CommonTypes::putBool($out, CommonTypes::getBool($in));           // createdInEditorMode
@@ -155,8 +164,8 @@ final class StartGamePacketHandler extends ManualPacketHandler{
 		LE::writeSignedInt($out, LE::readSignedInt($in));                // limitedWorldWidth
 		LE::writeSignedInt($out, LE::readSignedInt($in));                // limitedWorldLength
 		CommonTypes::putBool($out, CommonTypes::getBool($in));           // isNewNether
-		EducationUriResource::read($in)->write($out);                    // eduSharedUriResource
-		CommonTypes::writeOptional(                                      // experimentalGameplayOverride
+		EducationUriResource::read($in)->write($out);
+		CommonTypes::writeOptional(
 			$out,
 			CommonTypes::readOptional($in, CommonTypes::getBool(...)),
 			CommonTypes::putBool(...)

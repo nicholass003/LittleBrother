@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Types;
 
+use Nicholass003\LittleBrother\Schema\PacketContext;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 
@@ -35,8 +36,8 @@ final class TypeRegistry{
 	/**
 	 * Register type.
 	 *
-	 * @param callable(ByteBufferReader $in, int $protocol): mixed               $reader
-	 * @param callable(ByteBufferWriter $out, mixed $value, int $protocol): void $writer
+	 * @param callable(ByteBufferReader $in, int $protocol, ProtocolContext $context): mixed               $reader
+	 * @param callable(ByteBufferWriter $out, mixed $value, int $protocol, ProtocolContext $context): void $writer
 	 */
 	public function register(string $type, callable $reader, callable $writer) : void{
 		$this->types[$type] = ['reader' => $reader, 'writer' => $writer];
@@ -46,22 +47,22 @@ final class TypeRegistry{
 	 * @return mixed
 	 * @throws \RuntimeException
 	 */
-	public function read(ByteBufferReader $in, string $type, int $protocol) : mixed{
+	public function read(ByteBufferReader $in, string $type, int $protocol, PacketContext $context) : mixed{
 		if(!isset($this->types[$type])){
 			throw new \RuntimeException("Unknown type: '$type' (protocol=$protocol)");
 		}
-		return ($this->types[$type]['reader'])($in, $protocol);
+		return ($this->types[$type]['reader'])($in, $protocol, $context);
 	}
 
 	/**
 	 * @param mixed $value
 	 * @throws \RuntimeException
 	 */
-	public function write(ByteBufferWriter $out, string $type, mixed $value, int $protocol) : void{
+	public function write(ByteBufferWriter $out, string $type, mixed $value, int $protocol, PacketContext $context) : void{
 		if(!isset($this->types[$type])){
 			throw new \RuntimeException("Unknown type: '$type' (protocol=$protocol)");
 		}
-		($this->types[$type]['writer'])($out, $value, $protocol);
+		($this->types[$type]['writer'])($out, $value, $protocol, $context);
 	}
 
 	public function has(string $type) : bool{

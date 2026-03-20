@@ -29,11 +29,21 @@ final class ManualPacketRegistry{
 	/** @var array<int, ManualPacketHandler> */
 	private array $handlers = [];
 
-	public function register(int $packetId, ManualPacketHandler $handler) : void{
+	/** @var array<int, bool> */
+	private array $batchOnlyHandlers = [];
+
+	public function register(int $packetId, ManualPacketHandler $handler, bool $batchOnly = false) : void{
 		$this->handlers[$packetId] = $handler;
+		if($batchOnly === true){
+			$this->batchOnlyHandlers[$packetId] = true;
+		}
 	}
 
 	public function get(int $packetId) : ?ManualPacketHandler{
 		return $this->handlers[$packetId] ?? null;
+	}
+
+	public function isBatchOnly(int $packetId) : bool{
+		return isset($this->batchOnlyHandlers[$packetId]);
 	}
 }

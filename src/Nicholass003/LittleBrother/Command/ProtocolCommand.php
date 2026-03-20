@@ -24,7 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Command;
 
-use Nicholass003\LittleBrother\libs\_84402f41e7dd161a\CortexPE\Commando\BaseCommand;
+use Nicholass003\LittleBrother\libs\_c67ac3a466839f4d\CortexPE\Commando\BaseCommand;
 use Nicholass003\LittleBrother\LittleBrother;
 use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
 use pocketmine\command\CommandSender;
@@ -57,15 +57,15 @@ class ProtocolCommand extends BaseCommand{
 
 			$sender->sendMessage(
 				TextFormat::AQUA . "Your Client Information\n" .
-				TextFormat::GRAY . " • Protocol Version : " . TextFormat::GREEN . $protocolVersion . "\n" .
-				TextFormat::GRAY . " • Minecraft Version : " . TextFormat::YELLOW . $mcVersion
+				TextFormat::GRAY . " - Protocol Version : " . TextFormat::GREEN . $protocolVersion . "\n" .
+				TextFormat::GRAY . " - Minecraft Version : " . TextFormat::YELLOW . $mcVersion
 			);
 		}
 
 		$sender->sendMessage("");
 		$sender->sendMessage(
 			TextFormat::LIGHT_PURPLE . "Server Information\n" .
-			TextFormat::GRAY . " • Current Protocol : " . TextFormat::GREEN . ProtocolInfo::CURRENT_PROTOCOL
+			TextFormat::GRAY . " - Current Protocol : " . TextFormat::GREEN . ProtocolInfo::CURRENT_PROTOCOL
 		);
 
 		$sender->sendMessage("");
@@ -75,7 +75,7 @@ class ProtocolCommand extends BaseCommand{
 			$mcVersion = ProtocolVersion::MINECRAFT_VERSIONS[$protocol] ?? "Unknown";
 
 			$sender->sendMessage(
-				TextFormat::GRAY . " • " .
+				TextFormat::GRAY . " - " .
 				TextFormat::GREEN . "v{$protocol} " .
 				TextFormat::GRAY . "(" . TextFormat::YELLOW . $mcVersion . TextFormat::GRAY . ")"
 			);

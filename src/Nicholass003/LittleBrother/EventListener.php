@@ -24,7 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother;
 
-use Nicholass003\LittleBrother\Convert\Block\ChunkTranslator;
+use Nicholass003\LittleBrother\Protocol\PacketSender;
 use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
 use Nicholass003\LittleBrother\Utils\Debugger;
 use pmmp\encoding\ByteBufferReader;
@@ -35,20 +35,20 @@ use pocketmine\event\server\DataPacketDecodeEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\NetworkSession;
-use pocketmine\network\mcpe\protocol\LevelChunkPacket;
 use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
+use function array_values;
 use function in_array;
+use function spl_object_id;
 use function strlen;
-use const PHP_EOL;
 
 class EventListener implements Listener{
 
-	// Cached reflection for flushGamePacketQueue — private method at NetworkSession
+	/** @var \ReflectionMethod|null Cached reflection for NetworkSession::flushGamePacketQueue */
 	private static ?\ReflectionMethod $flushMethod = null;
 
-	// Cached reflection for NetworkSession::$packetPool
+	/** @var \ReflectionProperty|null Cached reflection for NetworkSession::$packetPool */
 	private static ?\ReflectionProperty $packetPoolProp = null;
 
 	public function __construct(
@@ -76,6 +76,19 @@ class EventListener implements Listener{
 				$protocolVersionProp->setAccessible(true);
 			}
 			$protocolVersionProp->setValue($packet, ProtocolInfo::CURRENT_PROTOCOL);
+			$ref = new \ReflectionClass($session);
+			$senderProp = $ref->getProperty('sender');
+			$senderProp->setAccessible(true);
+
+			$oldSender = $senderProp->getValue($session);
+
+			$newSender = new PacketSender(
+				$oldSender,
+				$session,
+				$this->plugin->getPacketBatchTranslator(),
+				$protocolVersion
+			);
+			$senderProp->setValue($session, $newSender);
 		}
 	}
 
@@ -84,9 +97,11 @@ class EventListener implements Listener{
 		$targets = $event->getTargets();
 		$storage = $this->plugin->getProtocolStorage();
 		$cache = $this->plugin->getCache();
-		$chunkTr = $this->plugin->getChunkTranslator();
 
 		$hasOldClient = false;
+		foreach($packets as $packet){
+			Debugger::debug("Sending " . $packet->getName(), $packet instanceof PlayerAuthInputPacket);
+		}
 		foreach($targets as $target){
 			$protocol = $storage->get($target);
 			if($protocol !== null && $protocol !== ProtocolInfo::CURRENT_PROTOCOL){
@@ -97,7 +112,8 @@ class EventListener implements Listener{
 		if(!$hasOldClient) return;
 
 		$writer = new ByteBufferWriter();
-		$nonTranslated = [];
+
+		$nonTranslatedSet = [];
 
 		foreach($packets as $packet){
 			Debugger::debug("Sending " . $packet->getName(), $packet instanceof PlayerAuthInputPacket);
@@ -105,51 +121,54 @@ class EventListener implements Listener{
 			$writer->clear();
 			$buffer = NetworkSession::encodePacketTimed($writer, $packet);
 
+			$needsDefaultSend = false;
+
 			foreach($targets as $target){
 				$protocol = $storage->get($target);
 
 				if($protocol === null || $protocol === ProtocolInfo::CURRENT_PROTOCOL){
-					$nonTranslated[] = $packet;
+					$needsDefaultSend = true;
 					continue;
 				}
 
 				if(!in_array($protocol, ProtocolVersion::SUPPORTED_PROTOCOLS, true)){
-					$nonTranslated[] = $packet;
+					$needsDefaultSend = true;
 					continue;
 				}
 
-				if($packet instanceof LevelChunkPacket){
-					$translated = $this->translateLevelChunk($packet, $protocol, $chunkTr);
-				} else {
-					$translated = $cache->get($protocol, $buffer);
-					if($translated === null){
-						try{
-							$result = $this->plugin->getTranslator()->translateOutbound($protocol, $buffer);
-						}catch(\Throwable $e){
-							echo "Translator error in packet " . $packet->getName() . PHP_EOL;
-							echo $e->getMessage() . PHP_EOL;
-							throw $e;
-						}
-						if($result === null){
-							continue;
-						}
-						$translated = $result;
-						Debugger::debug("Packet " . $packet->getName() .
-							" size before: " . strlen($buffer) .
-							" after: " . strlen($translated), $packet instanceof PlayerAuthInputPacket);
-						$cache->set($protocol, $buffer, $translated);
+				$translated = $cache->get($protocol, $buffer);
+				if($translated === null){
+					try{
+						$result = $this->plugin->getTranslator()->translateOutbound($protocol, $buffer);
+					}catch(\Throwable $e){
+						Debugger::debug("Translator error in packet " . $packet->getName());
+						Debugger::debug($e->getMessage());
+						throw $e;
 					}
+					if($result === null){
+						$needsDefaultSend = true;
+						continue;
+					}
+					$translated = $result;
+					Debugger::debug("Packet " . $packet->getName() .
+						" size before: " . strlen($buffer) .
+						" after: " . strlen($translated), $packet instanceof PlayerAuthInputPacket);
+					$cache->set($protocol, $buffer, $translated);
 				}
-
 				Debugger::debug("Translate " . $packet->getName(), $packet instanceof PlayerAuthInputPacket);
 				$target->addToSendBuffer($translated);
 				$this->flushSession($target);
 			}
+
+			if($needsDefaultSend){
+				$nonTranslatedSet[spl_object_id($packet)] = $packet;
+			}
 		}
 
-		$event->setPackets($nonTranslated);
-		foreach($event->getPackets() as $_p){
-			Debugger::debug("NON TRANSALTED PACKET : " . $_p->getName(), $packet instanceof PlayerAuthInputPacket);
+		$event->setPackets(array_values($nonTranslatedSet));
+
+		foreach($event->getPackets() as $p){
+			Debugger::debug("Non-translated packet: " . $p->getName(), $p instanceof PlayerAuthInputPacket);
 		}
 	}
 
@@ -164,18 +183,34 @@ class EventListener implements Listener{
 		$storage = $this->plugin->getProtocolStorage();
 		$protocol = $storage->get($session);
 
-		Debugger::debug('Packet Id : ' . $packetId,
-			$packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
+		Debugger::debug("Decodeing Packet ID: " . $packetId, $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
 
 		if($protocol === null || $protocol === ProtocolInfo::CURRENT_PROTOCOL) return;
 		if(!in_array($protocol, ProtocolVersion::SUPPORTED_PROTOCOLS, true)) return;
 
-		if($this->plugin->getTranslator()->getManualRegistry()->get($packetId) === null) return;
+		$translator = $this->plugin->getTranslator();
+
+		if($translator->getManualRegistry()->isBatchOnly($packetId)){
+			return;
+		}
+
+		$hasManual = $translator->getManualRegistry()->get($packetId) !== null;
+		$hasSchema = $translator->getSchemaRegistry()->get($packetId) !== null
+			&& !($translator->getSchemaRegistry()->get($packetId)->manual);
+
+		if(!$hasManual && !$hasSchema) return;
 
 		$originalBuffer = $event->getPacketBuffer();
+
 		$translated = $this->plugin->getTranslator()->translateInbound($protocol, $originalBuffer);
 
-		if($translated === null || $translated === $originalBuffer) return;
+		if($translated === null){
+			return;
+		}
+
+		if($translated === $originalBuffer){
+			return;
+		}
 
 		$event->cancel();
 
@@ -189,7 +224,6 @@ class EventListener implements Listener{
 
 		$packet = $pool->getPacket($translated);
 		if($packet === null){
-			Debugger::debug("Unknown packet after translation: packetId=" . $packetId);
 			return;
 		}
 
@@ -197,43 +231,14 @@ class EventListener implements Listener{
 			$reader = new ByteBufferReader($translated);
 			$packet->decode($reader);
 		}catch(\pocketmine\network\mcpe\protocol\PacketDecodeException $e){
-			Debugger::debug("Packet decode failed after translation: " . $e->getMessage());
+			Debugger::debug("Packet decode failed: " . $e->getMessage(), $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
 			return;
-		}
-
-		if(DataPacketReceiveEvent::hasHandlers()){
-			$receiveEv = new DataPacketReceiveEvent($session, $packet);
-			$receiveEv->call();
-			if($receiveEv->isCancelled()) return;
 		}
 
 		$handler = $session->getHandler();
 		if($handler !== null){
 			$packet->handle($handler);
 		}
-	}
-
-	private function translateLevelChunk(
-		LevelChunkPacket $packet,
-		int $clientProtocol,
-		ChunkTranslator $chunkTranslator
-	) : string{
-		$originalPayload = $packet->getExtraPayload();
-		if($originalPayload === ''){
-			$w = new ByteBufferWriter();
-			return NetworkSession::encodePacketTimed($w, $packet);
-		}
-		$translatedPayload = $chunkTranslator->translateChunkOutbound($clientProtocol, $originalPayload);
-		$translatedPacket = LevelChunkPacket::create(
-			$packet->getChunkPosition(),
-			$packet->getDimensionId(),
-			$packet->getSubChunkCount(),
-			$packet->isClientSubChunkRequestEnabled(),
-			$packet->getUsedBlobHashes(),
-			$translatedPayload
-		);
-		$w = new ByteBufferWriter();
-		return NetworkSession::encodePacketTimed($w, $translatedPacket);
 	}
 
 	private function flushSession(NetworkSession $session) : void{

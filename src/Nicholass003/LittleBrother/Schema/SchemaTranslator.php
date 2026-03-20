@@ -37,12 +37,7 @@ final class SchemaTranslator{
 		private SchemaRegistry $schemas
 	){}
 
-	public function translateInbound(
-		int $protocol,
-		int $packetId,
-		ByteBufferReader $reader
-	) : string|null|false{
-
+	public function translateInbound(int $protocol, int $packetId, ByteBufferReader $reader) : string|null|false{
 		$schema = $this->schemas->get($packetId);
 
 		if($schema === null){
@@ -65,20 +60,16 @@ final class SchemaTranslator{
 
 		$src = $protocol;
 		$dst = ProtocolInfo::CURRENT_PROTOCOL;
+		$context = new PacketContext();
 
 		foreach($schema->instructions as $op){
-			$op($reader, $writer, $types, $src, $dst);
+			$op($reader, $writer, $types, $src, $dst, $context);
 		}
 
 		return $writer->getData();
 	}
 
-	public function translateOutbound(
-		int $protocol,
-		int $packetId,
-		ByteBufferReader $reader
-	) : string|null|false{
-
+	public function translateOutbound(int $protocol, int $packetId, ByteBufferReader $reader) : string|null|false{
 		$schema = $this->schemas->get($packetId);
 
 		if($schema === null){
@@ -89,7 +80,7 @@ final class SchemaTranslator{
 		}
 
 		if($schema->manual){
-			Debugger::debug("PACKET NAME : " . $schema->packet, $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
+			Debugger::debug("PACKET NAME : " . $schema->packet, $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET || $packetId === ProtocolInfo::LEVEL_CHUNK_PACKET);
 			return false;
 		}
 
@@ -103,11 +94,16 @@ final class SchemaTranslator{
 
 		$src = ProtocolInfo::CURRENT_PROTOCOL;
 		$dst = $protocol;
+		$context = new PacketContext();
 
 		foreach($schema->instructions as $op){
-			$op($reader, $writer, $types, $src, $dst);
+			$op($reader, $writer, $types, $src, $dst, $context);
 		}
 
 		return $writer->getData();
+	}
+
+	public function getSchemaRegistry() : SchemaRegistry{
+		return $this->schemas;
 	}
 }

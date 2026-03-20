@@ -24,147 +24,119 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Convert\Block;
 
+use Nicholass003\LittleBrother\Utils\Debugger;
 use pmmp\encoding\Byte;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
-use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use function ceil;
-use function intdiv;
-use function substr;
+use pocketmine\world\format\PalettedBlockArray;
+use const PHP_INT_MAX;
 
 final class ChunkTranslator{
 
 	public function __construct(
-		private BlockRuntimeIdMapper $blockMapper
+		private RuntimeBlockMapper $blockMapper
 	){}
 
-	public function translateChunkOutbound(int $clientProtocol, string $chunkData) : string{
-		if($clientProtocol === ProtocolInfo::CURRENT_PROTOCOL){
-			return $chunkData;
+	public function translateChunkOutbound(int $clientProtocol, string $data, int $subChunkCount) : string{
+		if($subChunkCount === 0 || $data === ''){
+			return $data;
 		}
-		return $this->remapSubChunkData($clientProtocol, $chunkData, inbound: false);
-	}
 
-	public function translateChunkInbound(int $clientProtocol, string $chunkData) : string{
-		if($clientProtocol === ProtocolInfo::CURRENT_PROTOCOL){
-			return $chunkData;
-		}
-		return $this->remapSubChunkData($clientProtocol, $chunkData, inbound: true);
-	}
-
-	private function remapSubChunkData(int $clientProtocol, string $data, bool $inbound) : string{
 		$reader = new ByteBufferReader($data);
 		$writer = new ByteBufferWriter();
 
-		try{
-			$version = Byte::readUnsigned($reader);
-			Byte::writeUnsigned($writer, $version);
+		$translated = 0;
 
-			if($version === 8 || $version === 9){
-				$this->remapVersion8($clientProtocol, $reader, $writer, $inbound, $version === 9);
-			}else{
-				$remaining = $reader->getUnreadLength();
-				if($remaining > 0){
-					$writer->writeByteArray($reader->readByteArray($remaining));
-				}
+		while($reader->getUnreadLength() > 0){
+			if($subChunkCount !== PHP_INT_MAX && $translated >= $subChunkCount){
+				break;
 			}
-		}catch(\Throwable){
-			return $data;
+
+			if(!$this->translateSubChunk($reader, $writer, $clientProtocol)){
+				Debugger::log("ChunkTranslator: subchunk $translated failed, flushing " . $reader->getUnreadLength() . " bytes raw");
+				$writer->writeByteArray($reader->readByteArray($reader->getUnreadLength()));
+				return $writer->getData();
+			}
+
+			$translated++;
+		}
+
+		if($reader->getUnreadLength() > 0){
+			$writer->writeByteArray($reader->readByteArray($reader->getUnreadLength()));
 		}
 
 		return $writer->getData();
 	}
 
-	private function remapVersion8(
-		int $clientProtocol,
-		ByteBufferReader $reader,
-		ByteBufferWriter $writer,
-		bool $inbound,
-		bool $hasSubChunkIndex
-	) : void{
-		if($hasSubChunkIndex){
-			$subChunkIndex = Byte::readSigned($reader);
-			Byte::writeSigned($writer, $subChunkIndex);
+	private function translateSubChunk(ByteBufferReader $reader, ByteBufferWriter $writer, int $clientProtocol) : bool{
+		if($reader->getUnreadLength() < 2){
+			return false;
+		}
+
+		$version = Byte::readUnsigned($reader);
+		Byte::writeUnsigned($writer, $version);
+
+		if($version === 9){
+			if($reader->getUnreadLength() < 1) return false;
+			Byte::writeSigned($writer, Byte::readSigned($reader));
 		}
 
 		$storageCount = Byte::readUnsigned($reader);
 		Byte::writeUnsigned($writer, $storageCount);
 
-		for($i = 0; $i < $storageCount; $i++){
-			$this->remapBlockStorage($clientProtocol, $reader, $writer, $inbound);
+		for($s = 0; $s < $storageCount; $s++){
+			if(!$this->translateBlockStorage($reader, $writer, $clientProtocol)){
+				return false;
+			}
 		}
+
+		return true;
 	}
 
-	private function remapBlockStorage(
-		int $clientProtocol,
-		ByteBufferReader $reader,
-		ByteBufferWriter $writer,
-		bool $inbound
-	) : void{
+	private function translateBlockStorage(ByteBufferReader $reader,  ByteBufferWriter $writer,int $clientProtocol) : bool{
+		if($reader->getUnreadLength() < 1) return false;
+
 		$flags = Byte::readUnsigned($reader);
 		$bitsPerBlock = $flags >> 1;
 		$isRuntime = ($flags & 1) === 1;
 		Byte::writeUnsigned($writer, $flags);
 
+		$wordArraySize = PalettedBlockArray::getExpectedWordArraySize($bitsPerBlock);
+
+		if($reader->getUnreadLength() < $wordArraySize){
+			Debugger::log("ChunkTranslator: need $wordArraySize bytes for word array, have " . $reader->getUnreadLength());
+			return false;
+		}
+
+		$writer->writeByteArray($reader->readByteArray($wordArraySize));
+
 		if($bitsPerBlock === 0){
-			$paletteSize = VarInt::readUnsignedInt($reader);
-			VarInt::writeUnsignedInt($writer, $paletteSize);
-			for($i = 0; $i < $paletteSize; $i++){
-				$runtimeId = VarInt::readUnsignedInt($reader);
-				$remapped = $this->remapBlockId($clientProtocol, $runtimeId, $inbound);
-				VarInt::writeUnsignedInt($writer, $remapped);
-			}
-			return;
+			if($reader->getUnreadLength() < 1) return false;
+			$runtimeId = VarInt::readSignedInt($reader);
+			$mapped = $isRuntime ? $this->blockMapper->serverToClient($clientProtocol, $runtimeId) : $runtimeId;
+			VarInt::writeSignedInt($writer, $mapped);
+			return true;
 		}
 
-		$blocksPerWord = intdiv(32, $bitsPerBlock);
-		$wordCount = (int) ceil(4096 / $blocksPerWord);
-		$indicesBytes = $wordCount * 4;
+		if($reader->getUnreadLength() < 1) return false;
 
-		if($indicesBytes > 0){
-			$indices = $reader->readByteArray($indicesBytes);
-			$writer->writeByteArray($indices);
+		$paletteSize = VarInt::readSignedInt($reader);
+
+		if($paletteSize < 0 || $paletteSize > 4096){
+			Debugger::log("ChunkTranslator: bad paletteSize $paletteSize");
+			return false;
 		}
 
-		$paletteSize = VarInt::readUnsignedInt($reader);
-		VarInt::writeUnsignedInt($writer, $paletteSize);
+		VarInt::writeSignedInt($writer, $paletteSize);
 
 		for($i = 0; $i < $paletteSize; $i++){
-			if($isRuntime){
-				$runtimeId = VarInt::readUnsignedInt($reader);
-				$remapped = $this->remapBlockId($clientProtocol, $runtimeId, $inbound);
-				VarInt::writeUnsignedInt($writer, $remapped);
-			}else{
-				$this->passthroughNbtCompound($reader, $writer);
-			}
+			if($reader->getUnreadLength() < 1) return false;
+			$runtimeId = VarInt::readSignedInt($reader);
+			$mapped = $isRuntime ? $this->blockMapper->serverToClient($clientProtocol, $runtimeId) : $runtimeId;
+			VarInt::writeSignedInt($writer, $mapped);
 		}
-	}
 
-	private function remapBlockId(int $clientProtocol, int $runtimeId, bool $inbound) : int{
-		$translator = $this->blockMapper->get($clientProtocol);
-		if($translator === null) return $runtimeId;
-		return $inbound
-			? $translator->clientToServer($runtimeId)
-			: $translator->serverToClient($runtimeId);
-	}
-
-	private function passthroughNbtCompound(
-		ByteBufferReader &$reader,
-		ByteBufferWriter $writer
-	) : void{
-		$serializer = new \pocketmine\nbt\LittleEndianNbtSerializer();
-
-		$remaining = $reader->getUnreadLength() > 0
-			? $reader->readByteArray($reader->getUnreadLength())
-			: '';
-
-		$offset = 0;
-		$root = $serializer->read($remaining, $offset);
-
-		$writer->writeByteArray($serializer->write($root));
-
-		$unconsumed = substr($remaining, $offset);
-		$reader = new ByteBufferReader($unconsumed !== '' ? $unconsumed : '');
+		return true;
 	}
 }

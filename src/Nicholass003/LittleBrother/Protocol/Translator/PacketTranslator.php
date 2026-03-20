@@ -25,7 +25,9 @@ declare(strict_types=1);
 namespace Nicholass003\LittleBrother\Protocol\Translator;
 
 use Nicholass003\LittleBrother\LittleBrother;
+use Nicholass003\LittleBrother\Protocol\Translator\Handler\AnimatePacketHandler;
 use Nicholass003\LittleBrother\Protocol\Translator\Handler\CraftingDataPacketHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Handler\InteractPacketHandler;
 use Nicholass003\LittleBrother\Protocol\Translator\Handler\ItemStackResponsePacketHandler;
 use Nicholass003\LittleBrother\Protocol\Translator\Handler\MovePlayerPacketHandler;
 use Nicholass003\LittleBrother\Protocol\Translator\Handler\PlayerAuthInputPacketHandler;
@@ -33,8 +35,12 @@ use Nicholass003\LittleBrother\Protocol\Translator\Handler\PlayerListPacketHandl
 use Nicholass003\LittleBrother\Protocol\Translator\Handler\StartGamePacketHandler;
 use Nicholass003\LittleBrother\Protocol\Translator\Handler\TextPacketHandler;
 use Nicholass003\LittleBrother\Protocol\Translator\Runtime\LevelChunkRuntimeHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\UpdateBlockRuntimeHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\UpdateBlockSyncedRuntimeHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\UpdateSubChunkBlocksRuntimeHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\v729\Packet\InventoryTransactionPacketHandler;
+use Nicholass003\LittleBrother\Schema\SchemaRegistry;
 use Nicholass003\LittleBrother\Schema\SchemaTranslator;
-use Nicholass003\LittleBrother\Utils\Debugger;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
@@ -57,11 +63,11 @@ final class PacketTranslator{
 	}
 
 	private function registerRuntimePacketHandlers() : void{
-		$runtime = $this->runtime;
-		$runtime->register(
-			ProtocolInfo::LEVEL_CHUNK_PACKET,
-			new LevelChunkRuntimeHandler($this->plugin->getChunkTranslator())
-		);
+		$registry = $this->runtime;
+		$registry->register(ProtocolInfo::LEVEL_CHUNK_PACKET, new LevelChunkRuntimeHandler($this->plugin->getChunkTranslator()));
+		$registry->register(ProtocolInfo::UPDATE_BLOCK_PACKET, new UpdateBlockRuntimeHandler($this->plugin->getRuntimeBlockMapper()));
+		$registry->register(ProtocolInfo::UPDATE_SUB_CHUNK_BLOCKS_PACKET, new UpdateSubChunkBlocksRuntimeHandler($this->plugin->getRuntimeBlockMapper()));
+		$registry->register(ProtocolInfo::UPDATE_BLOCK_SYNCED_PACKET, new UpdateBlockSyncedRuntimeHandler($this->plugin->getRuntimeBlockMapper()));
 	}
 
 	private function registerHandlers() : void{
@@ -73,25 +79,32 @@ final class PacketTranslator{
 		$registry->register(ProtocolInfo::PLAYER_AUTH_INPUT_PACKET, new PlayerAuthInputPacketHandler());
 		$registry->register(ProtocolInfo::MOVE_PLAYER_PACKET, new MovePlayerPacketHandler());
 		$registry->register(ProtocolInfo::ITEM_STACK_RESPONSE_PACKET, new ItemStackResponsePacketHandler());
+		$registry->register(ProtocolInfo::INTERACT_PACKET, new InteractPacketHandler());
+		$registry->register(ProtocolInfo::ANIMATE_PACKET, new AnimatePacketHandler());
+		$registry->register(ProtocolInfo::INVENTORY_TRANSACTION_PACKET, new InventoryTransactionPacketHandler($this->plugin->getTypeRegistryFactory()->getTypeRegistry()), batchOnly: true);
 	}
 
 	public function translateInbound(int $protocol, string $payload) : ?string{
-
 		$reader = new ByteBufferReader($payload);
 
 		$header = VarInt::readUnsignedInt($reader);
 		$packetId = $header & DataPacket::PID_MASK;
 
-		$result = $this->schema->translateInbound(
-			$protocol,
-			$packetId,
-			$reader
-		);
+		$body = $reader->getUnreadLength() > 0
+			? $reader->readByteArray($reader->getUnreadLength())
+			: "";
+
 		$runtime = $this->runtime->get($packetId);
 
 		if($runtime !== null){
-			$result = $runtime->translateInbound($protocol, $result);
+			$body = $runtime->translateInbound($protocol, $body);
 		}
+
+		$result = $this->schema->translateInbound(
+			$protocol,
+			$packetId,
+			new ByteBufferReader($body)
+		);
 
 		if($result === null){
 			return null;
@@ -99,32 +112,16 @@ final class PacketTranslator{
 
 		if($result === false){
 
-			Debugger::debug("Packet ID: " . $packetId, $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
 			$handler = $this->manual->get($packetId);
 
-			$fields = $reader->getUnreadLength() > 0
-				? $reader->readByteArray($reader->getUnreadLength())
-				: "";
-
 			if($handler !== null){
-
-				$fieldReader = new ByteBufferReader($fields);
-
-				$fields = $handler->translateInbound(
+				$result = $handler->translateInbound(
 					$protocol,
-					$fieldReader
+					new ByteBufferReader($body)
 				);
+			}else{
+				$result = $body;
 			}
-
-			$this->writer->clear();
-
-			VarInt::writeUnsignedInt($this->writer, $header);
-
-			if($fields !== ""){
-				$this->writer->writeByteArray($fields);
-			}
-
-			return $this->writer->getData();
 		}
 
 		$this->writer->clear();
@@ -143,53 +140,39 @@ final class PacketTranslator{
 
 		$header = VarInt::readUnsignedInt($reader);
 		$packetId = $header & DataPacket::PID_MASK;
-		Debugger::debug("TRYING TO TRANSLATE", $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
+
+		$body = $reader->getUnreadLength() > 0
+			? $reader->readByteArray($reader->getUnreadLength())
+			: "";
+
+		$runtime = $this->runtime->get($packetId);
+
+		if($runtime !== null){
+			$body = $runtime->translateOutbound($protocol, $body);
+		}
 
 		$result = $this->schema->translateOutbound(
 			$protocol,
 			$packetId,
-			$reader
+			new ByteBufferReader($body)
 		);
-		$runtime = $this->runtime->get($packetId);
-
-		if($runtime !== null){
-			Debugger::debug("RUNTIME PACKET HANDLER", $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
-			$result = $runtime->translateOutbound($protocol, $result);
-		}
 
 		if($result === null){
-			Debugger::debug("Result NULL on Packet ID: " . $packetId, $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
 			return null;
 		}
 
 		if($result === false){
 
-			Debugger::debug("Packet ID: " . $packetId, $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
 			$handler = $this->manual->get($packetId);
 
-			$fields = $reader->getUnreadLength() > 0
-				? $reader->readByteArray($reader->getUnreadLength())
-				: "";
-
 			if($handler !== null){
-
-				$fieldReader = new ByteBufferReader($fields);
-
-				$fields = $handler->translateOutbound(
+				$result = $handler->translateOutbound(
 					$protocol,
-					$fieldReader
+					new ByteBufferReader($body)
 				);
+			}else{
+				$result = $body;
 			}
-
-			$this->writer->clear();
-
-			VarInt::writeUnsignedInt($this->writer, $header);
-
-			if($fields !== ""){
-				$this->writer->writeByteArray($fields);
-			}
-
-			return $this->writer->getData();
 		}
 
 		$this->writer->clear();
@@ -205,5 +188,9 @@ final class PacketTranslator{
 
 	public function getManualRegistry() : ManualPacketRegistry{
 		return $this->manual;
+	}
+
+	public function getSchemaRegistry() : SchemaRegistry{
+		return $this->schema->getSchemaRegistry();
 	}
 }

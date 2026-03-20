@@ -24,23 +24,25 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Types;
 
+use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
+use Nicholass003\LittleBrother\Schema\PacketContext;
 use Nicholass003\LittleBrother\Types\Biome\BiomeChunkGenParser;
 use pmmp\encoding\Byte;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\LE;
 use pmmp\encoding\VarInt;
-use pocketmine\color\Color;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\AbilitiesData;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
+use pocketmine\network\mcpe\protocol\types\command\CommandOriginData;
+use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequestActionType;
 use pocketmine\utils\Binary;
+use function array_flip;
 use function array_merge;
 use function count;
 use function ord;
-use function pack;
 use function str_split;
-use function unpack;
 
 final class ManualTypeRegistry{
 
@@ -59,15 +61,14 @@ final class ManualTypeRegistry{
 		self::registerCommandSoftEnumValue($registry);
 		self::registerOptionalBiomeDefinitionTags($registry);
 		self::registerOptionalBiomeDefinitionChunkGenData($registry);
-		self::registerOptionalLEUnsignedInt($registry);
 
-		self::registerBeU32($registry);
 		self::registerRotationByte($registry);
 		self::registerEntityLink($registry);
 		self::registerAttribute($registry);
 		self::registerGameRules($registry);
 		self::registerCommandOriginData($registry);
 		self::registerGetCommandMessage($registry);
+		self::registerEnumValueIndexes($registry);
 		self::registerStructureSettings($registry);
 		self::registerStructureEditorData($registry);
 		self::registerDimensionData($registry);
@@ -83,6 +84,7 @@ final class ManualTypeRegistry{
 		self::registerTransactionData($registry);
 		self::registerPackSettings($registry);
 		self::registerSerializableVoxelCells($registry);
+		self::registerSerializableVoxelShape($registry);
 		self::registerCameraSplineInstruction($registry);
 		self::registerCameraAimAssistCategoryPriorities($registry);
 		self::registerCameraAimAssistPresetExclusionDefinition($registry);
@@ -94,25 +96,11 @@ final class ManualTypeRegistry{
 	private static function registerCacheableNbt(TypeRegistry $registry) : void{
 		$registry->register(
 			'cacheable_nbt',
-			reader: static function(ByteBufferReader $in, int $protocol) : string{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : string{
 				return (new CacheableNbt(CommonTypes::getNbtCompoundRoot($in)))->getEncodedNbt();
 			},
-			writer: static function(ByteBufferWriter $out, string $bytes, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, string $bytes, int $protocol, PacketContext $context) : void{
 				$out->writeByteArray($bytes);
-			}
-		);
-	}
-
-	private static function registerBeU32(TypeRegistry $registry) : void{
-		$registry->register(
-			'be:u32',
-			reader: static function(ByteBufferReader $in, int $protocol) : int{
-				$bytes = $in->readByteArray(4);
-				[, $val] = unpack('N', $bytes);
-				return $val;
-			},
-			writer: static function(ByteBufferWriter $out, int $v, int $protocol) : void{
-				$out->writeByteArray(pack('N', $v));
 			}
 		);
 	}
@@ -120,10 +108,10 @@ final class ManualTypeRegistry{
 	private static function registerRotationByte(TypeRegistry $registry) : void{
 		$registry->register(
 			'rotation_byte',
-			reader: static function(ByteBufferReader $in, int $protocol) : float{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : float{
 				return CommonTypes::getRotationByte($in);
 			},
-			writer: static function(ByteBufferWriter $out, float $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, float $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putRotationByte($out, $v);
 			}
 		);
@@ -132,7 +120,7 @@ final class ManualTypeRegistry{
 	private static function registerEntityLink(TypeRegistry $registry) : void{
 		$registry->register(
 			'entity_link',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'fromActorUniqueId' => CommonTypes::getActorUniqueId($in),
 					'toActorUniqueId' => CommonTypes::getActorUniqueId($in),
@@ -142,7 +130,7 @@ final class ManualTypeRegistry{
 					'vehicleAngularVelocity' => LE::readFloat($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putActorUniqueId($out, $v['fromActorUniqueId']);
 				CommonTypes::putActorUniqueId($out, $v['toActorUniqueId']);
 				Byte::writeUnsigned($out, $v['type']);
@@ -156,7 +144,7 @@ final class ManualTypeRegistry{
 	private static function registerAttribute(TypeRegistry $registry) : void{
 		$registry->register(
 			'attribute',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$min = LE::readFloat($in);
 				$max = LE::readFloat($in);
 				$current = LE::readFloat($in);
@@ -187,7 +175,7 @@ final class ManualTypeRegistry{
 					'modifiers' => $modifiers,
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				LE::writeFloat($out, $v['min']);
 				LE::writeFloat($out, $v['max']);
 				LE::writeFloat($out, $v['current']);
@@ -211,31 +199,73 @@ final class ManualTypeRegistry{
 	private static function registerGameRules(TypeRegistry $registry) : void{
 		$registry->register(
 			'game_rules',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return CommonTypes::getGameRules($in, false);
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putGameRules($out, $v, false);
 			}
 		);
 	}
 
 	private static function registerCommandOriginData(TypeRegistry $registry) : void{
+		$intToString = [
+			0 => CommandOriginData::ORIGIN_PLAYER,
+			1 => CommandOriginData::ORIGIN_BLOCK,
+			2 => CommandOriginData::ORIGIN_MINECART_BLOCK,
+			3 => CommandOriginData::ORIGIN_DEV_CONSOLE,
+			4 => CommandOriginData::ORIGIN_TEST,
+			5 => CommandOriginData::ORIGIN_AUTOMATION_PLAYER,
+			6 => CommandOriginData::ORIGIN_CLIENT_AUTOMATION,
+			7 => CommandOriginData::ORIGIN_DEDICATED_SERVER,
+			8 => CommandOriginData::ORIGIN_ENTITY,
+			9 => CommandOriginData::ORIGIN_VIRTUAL,
+			10 => CommandOriginData::ORIGIN_GAME_ARGUMENT,
+			11 => CommandOriginData::ORIGIN_ENTITY_SERVER,
+		];
+
+		$stringToInt = array_flip($intToString);
+
 		$registry->register(
 			'command_origin_data',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
-				return [
-					'type' => CommonTypes::getString($in),
-					'uuid' => CommonTypes::getUUID($in),
-					'requestId' => CommonTypes::getString($in),
-					'playerActorUniqueId' => LE::readSignedLong($in),
-				];
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) use ($intToString, $stringToInt) : array{
+				$params = [];
+				if($protocol <= ProtocolVersion::BE_1_21_120){
+					$typeInt = VarInt::readUnsignedInt($in);
+					$params['type_int'] = $typeInt;
+					$params['type_str'] = $intToString[$typeInt] ?? CommandOriginData::ORIGIN_PLAYER;
+					$params['uuid'] = CommonTypes::getUUID($in);
+					$params['requestId'] = CommonTypes::getString($in);
+					if($typeInt === 3 || $typeInt === 4){
+						$params['playerActorUniqueId'] = VarInt::readSignedLong($in);
+					}else{
+						$params['playerActorUniqueId'] = 0;
+					}
+				}else{
+					$typeStr = CommonTypes::getString($in);
+					$params['type_str'] = $typeStr;
+					$params['type_int'] = $stringToInt[$typeStr] ?? 0;
+					$params['uuid'] = CommonTypes::getUUID($in);
+					$params['requestId'] = CommonTypes::getString($in);
+					$params['playerActorUniqueId'] = LE::readSignedLong($in);
+				}
+				return $params;
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
-				CommonTypes::putString($out, $v['type']);
-				CommonTypes::putUUID($out, $v['uuid']);
-				CommonTypes::putString($out, $v['requestId']);
-				LE::writeSignedLong($out, $v['playerActorUniqueId']);
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+				if($protocol <= ProtocolVersion::BE_1_21_120){
+					$typeInt = $v['type_int'];
+					VarInt::writeUnsignedInt($out, $typeInt);
+					CommonTypes::putUUID($out, $v['uuid']);
+					CommonTypes::putString($out, $v['requestId']);
+					if($typeInt === 3 || $typeInt === 4){
+						VarInt::writeSignedLong($out, $v['playerActorUniqueId']);
+					}
+				}else{
+					CommonTypes::putString($out, $v['type_str']);
+					CommonTypes::putUUID($out, $v['uuid']);
+					CommonTypes::putString($out, $v['requestId']);
+					LE::writeSignedLong($out, $v['playerActorUniqueId']);
+				}
 			}
 		);
 	}
@@ -243,7 +273,7 @@ final class ManualTypeRegistry{
 	private static function registerGetCommandMessage(TypeRegistry $registry) : void{
 		$registry->register(
 			'get_command_message',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$success = CommonTypes::getBool($in);
 				$messageId = CommonTypes::getString($in);
 				$params = [];
@@ -257,7 +287,7 @@ final class ManualTypeRegistry{
 					'params' => $params,
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putBool($out, $v['success']);
 				CommonTypes::putString($out, $v['messageId']);
 				VarInt::writeUnsignedInt($out, count($v['params']));
@@ -271,14 +301,24 @@ final class ManualTypeRegistry{
 	private static function registerStructureSettings(TypeRegistry $registry) : void{
 		$registry->register(
 			'structure_settings',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'paletteName' => CommonTypes::getString($in),
 					'ignoreEntities' => CommonTypes::getBool($in),
 					'ignoreBlocks' => CommonTypes::getBool($in),
 					'allowNonTickingChunks' => CommonTypes::getBool($in),
-					'dimensions' => CommonTypes::getBlockPosition($in),
-					'offset' => CommonTypes::getBlockPosition($in),
+					'dimensions' => function($in, $protocol, $context){
+						if($protocol >= ProtocolVersion::BE_1_26_10){
+							return CommonTypes::getSignedBlockPosition($in);
+						}
+						return CommonTypes::getBlockPosition($in);
+					},
+					'offset' => function($in, $protocol, $context){
+						if($protocol >= ProtocolVersion::BE_1_26_10){
+							return CommonTypes::getSignedBlockPosition($in);
+						}
+						return CommonTypes::getBlockPosition($in);
+					},
 					'lastTouchedByPlayerID' => CommonTypes::getActorUniqueId($in),
 					'rotation' => Byte::readUnsigned($in),
 					'mirror' => Byte::readUnsigned($in),
@@ -289,13 +329,21 @@ final class ManualTypeRegistry{
 					'pivot' => CommonTypes::getVector3($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putString($out, $v['paletteName']);
 				CommonTypes::putBool($out, $v['ignoreEntities']);
 				CommonTypes::putBool($out, $v['ignoreBlocks']);
 				CommonTypes::putBool($out, $v['allowNonTickingChunks']);
-				CommonTypes::putBlockPosition($out, $v['dimensions']);
-				CommonTypes::putBlockPosition($out, $v['offset']);
+				if($protocol >= ProtocolVersion::BE_1_26_10){
+					CommonTypes::putSignedBlockPosition($out, $v['dimensions']);
+				}else{
+					CommonTypes::putBlockPosition($out, $v['dimensions']);
+				}
+				if($protocol >= ProtocolVersion::BE_1_26_10){
+					CommonTypes::putSignedBlockPosition($out, $v['offset']);
+				}else{
+					CommonTypes::putBlockPosition($out, $v['offset']);
+				}
 				CommonTypes::putActorUniqueId($out, $v['lastTouchedByPlayerID']);
 				Byte::writeUnsigned($out, $v['rotation']);
 				Byte::writeUnsigned($out, $v['mirror']);
@@ -311,7 +359,7 @@ final class ManualTypeRegistry{
 	private static function registerStructureEditorData(TypeRegistry $registry) : void{
 		$registry->register(
 			'structure_editor_data',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'structureName' => CommonTypes::getString($in),
 					'filteredStructureName' => CommonTypes::getString($in),
@@ -319,31 +367,41 @@ final class ManualTypeRegistry{
 					'includePlayers' => CommonTypes::getBool($in),
 					'showBoundingBox' => CommonTypes::getBool($in),
 					'structureBlockType' => VarInt::readSignedInt($in),
-					'structureSettings' => self::readStructureSettingsInline($in),
+					'structureSettings' => self::readStructureSettingsInline($in, $protocol),
 					'structureRedstoneSaveMode' => VarInt::readSignedInt($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putString($out, $v['structureName']);
 				CommonTypes::putString($out, $v['filteredStructureName']);
 				CommonTypes::putString($out, $v['structureDataField']);
 				CommonTypes::putBool($out, $v['includePlayers']);
 				CommonTypes::putBool($out, $v['showBoundingBox']);
 				VarInt::writeSignedInt($out, $v['structureBlockType']);
-				self::writeStructureSettingsInline($out, $v['structureSettings']);
+				self::writeStructureSettingsInline($out, $v['structureSettings'], $protocol);
 				VarInt::writeSignedInt($out, $v['structureRedstoneSaveMode']);
 			}
 		);
 	}
 
-	private static function readStructureSettingsInline(ByteBufferReader $in) : array{
+	private static function readStructureSettingsInline(ByteBufferReader $in, int $protocol) : array{
 		return [
 			'paletteName' => CommonTypes::getString($in),
 			'ignoreEntities' => CommonTypes::getBool($in),
 			'ignoreBlocks' => CommonTypes::getBool($in),
 			'allowNonTickingChunks' => CommonTypes::getBool($in),
-			'dimensions' => CommonTypes::getBlockPosition($in),
-			'offset' => CommonTypes::getBlockPosition($in),
+			'dimensions' => function($in, $protocol, $context){
+						if($protocol >= ProtocolVersion::BE_1_26_10){
+							return CommonTypes::getSignedBlockPosition($in);
+						}
+						return CommonTypes::getBlockPosition($in);
+					},
+			'offset' => function($in, $protocol, $context){
+						if($protocol >= ProtocolVersion::BE_1_26_10){
+							return CommonTypes::getSignedBlockPosition($in);
+						}
+						return CommonTypes::getBlockPosition($in);
+					},
 			'lastTouchedByPlayerID' => CommonTypes::getActorUniqueId($in),
 			'rotation' => Byte::readUnsigned($in),
 			'mirror' => Byte::readUnsigned($in),
@@ -355,13 +413,21 @@ final class ManualTypeRegistry{
 		];
 	}
 
-	private static function writeStructureSettingsInline(ByteBufferWriter $out, array $v) : void{
+	private static function writeStructureSettingsInline(ByteBufferWriter $out, array $v, int $protocol) : void{
 		CommonTypes::putString($out, $v['paletteName']);
 		CommonTypes::putBool($out, $v['ignoreEntities']);
 		CommonTypes::putBool($out, $v['ignoreBlocks']);
 		CommonTypes::putBool($out, $v['allowNonTickingChunks']);
-		CommonTypes::putBlockPosition($out, $v['dimensions']);
-		CommonTypes::putBlockPosition($out, $v['offset']);
+		if($protocol >= ProtocolVersion::BE_1_26_10){
+			CommonTypes::putSignedBlockPosition($out, $v['dimensions']);
+		}else{
+			CommonTypes::putBlockPosition($out, $v['dimensions']);
+		}
+		if($protocol >= ProtocolVersion::BE_1_26_10){
+			CommonTypes::putSignedBlockPosition($out, $v['offset']);
+		}else{
+			CommonTypes::putBlockPosition($out, $v['offset']);
+		}
 		CommonTypes::putActorUniqueId($out, $v['lastTouchedByPlayerID']);
 		Byte::writeUnsigned($out, $v['rotation']);
 		Byte::writeUnsigned($out, $v['mirror']);
@@ -375,14 +441,14 @@ final class ManualTypeRegistry{
 	private static function registerDimensionData(TypeRegistry $registry) : void{
 		$registry->register(
 			'dimension_data',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'maxHeight' => VarInt::readSignedInt($in),
 					'minHeight' => VarInt::readSignedInt($in),
 					'generator' => VarInt::readSignedInt($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				VarInt::writeSignedInt($out, $v['maxHeight']);
 				VarInt::writeSignedInt($out, $v['minHeight']);
 				VarInt::writeSignedInt($out, $v['generator']);
@@ -393,12 +459,12 @@ final class ManualTypeRegistry{
 	private static function registerChunkCacheBlob(TypeRegistry $registry) : void{
 		$registry->register(
 			'chunk_cache_blob',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$hash = LE::readUnsignedLong($in);
 				$payload = CommonTypes::getString($in);
 				return ['hash' => $hash, 'payload' => $payload];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				LE::writeUnsignedLong($out, $v['hash']);
 				CommonTypes::putString($out, $v['payload']);
 			}
@@ -408,7 +474,7 @@ final class ManualTypeRegistry{
 	private static function registerMapDecoration(TypeRegistry $registry) : void{
 		$registry->register(
 			'map_decoration',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'icon' => Byte::readUnsigned($in),
 					'rotation' => Byte::readUnsigned($in),
@@ -419,7 +485,7 @@ final class ManualTypeRegistry{
 					'color' => Binary::flipIntEndianness(VarInt::readUnsignedInt($in)),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				Byte::writeUnsigned($out, $v['icon']);
 				Byte::writeUnsigned($out, $v['rotation']);
 				Byte::writeUnsigned($out, $v['xOffset']);
@@ -433,10 +499,10 @@ final class ManualTypeRegistry{
 	private static function registerMapImage(TypeRegistry $registry) : void{
 		$registry->register(
 			'map_image',
-			reader: static function(ByteBufferReader $in, int $protocol) : string{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : string{
 				return $in->readByteArray($in->getUnreadLength());
 			},
-			writer: static function(ByteBufferWriter $out, string $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, string $v, int $protocol, PacketContext $context) : void{
 				$out->writeByteArray($v);
 			}
 		);
@@ -445,10 +511,10 @@ final class ManualTypeRegistry{
 	private static function registerItemStack(TypeRegistry $registry) : void{
 		$registry->register(
 			'item_stack',
-			reader: static function(ByteBufferReader $in, int $protocol) : mixed{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : mixed{
 				return CommonTypes::getItemStackWithoutStackId($in);
 			},
-			writer: static function(ByteBufferWriter $out, mixed $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, mixed $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putItemStackWithoutStackId($out, $v);
 			}
 		);
@@ -457,10 +523,10 @@ final class ManualTypeRegistry{
 	private static function registerRecipeIngredient(TypeRegistry $registry) : void{
 		$registry->register(
 			'recipe_ingredient',
-			reader: static function(ByteBufferReader $in, int $protocol) : mixed{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : mixed{
 				return CommonTypes::getRecipeIngredient($in);
 			},
-			writer: static function(ByteBufferWriter $out, mixed $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, mixed $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putRecipeIngredient($out, $v);
 			}
 		);
@@ -469,7 +535,7 @@ final class ManualTypeRegistry{
 	private static function registerRecipeUnlockingRequirement(TypeRegistry $registry) : void{
 		$registry->register(
 			'recipe_unlocking_requirement',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				// bool true  → null (always-unlocked)
 				// bool false → list<RecipeIngredient>
 				$isAlwaysUnlocked = CommonTypes::getBool($in);
@@ -483,7 +549,7 @@ final class ManualTypeRegistry{
 				}
 				return ['alwaysUnlocked' => false, 'ingredients' => $ingredients];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putBool($out, $v['alwaysUnlocked']);
 				if(!$v['alwaysUnlocked']){
 					VarInt::writeUnsignedInt($out, count($v['ingredients']));
@@ -498,7 +564,7 @@ final class ManualTypeRegistry{
 	private static function registerPotionTypeRecipe(TypeRegistry $registry) : void{
 		$registry->register(
 			'potion_type_recipe',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'inputItemId' => VarInt::readSignedInt($in),
 					'inputItemMeta' => VarInt::readSignedInt($in),
@@ -508,7 +574,7 @@ final class ManualTypeRegistry{
 					'outputItemMeta' => VarInt::readSignedInt($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				VarInt::writeSignedInt($out, $v['inputItemId']);
 				VarInt::writeSignedInt($out, $v['inputItemMeta']);
 				VarInt::writeSignedInt($out, $v['ingredientItemId']);
@@ -522,14 +588,14 @@ final class ManualTypeRegistry{
 	private static function registerPotionContainerChangeRecipe(TypeRegistry $registry) : void{
 		$registry->register(
 			'potion_container_change_recipe',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'inputItemId' => VarInt::readSignedInt($in),
 					'ingredientItemId' => VarInt::readSignedInt($in),
 					'outputItemId' => VarInt::readSignedInt($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				VarInt::writeSignedInt($out, $v['inputItemId']);
 				VarInt::writeSignedInt($out, $v['ingredientItemId']);
 				VarInt::writeSignedInt($out, $v['outputItemId']);
@@ -540,7 +606,7 @@ final class ManualTypeRegistry{
 	private static function registerMaterialReducerRecipe(TypeRegistry $registry) : void{
 		$registry->register(
 			'material_reducer_recipe',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$inputIdAndData = VarInt::readSignedInt($in);
 				$inputId = $inputIdAndData >> 16;
 				$inputMeta = $inputIdAndData & 0x7FFF;
@@ -558,7 +624,7 @@ final class ManualTypeRegistry{
 					'outputs' => $outputs,
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				VarInt::writeSignedInt($out, ($v['inputItemId'] << 16) | $v['inputItemMeta']);
 				VarInt::writeUnsignedInt($out, count($v['outputs']));
 				foreach($v['outputs'] as $output){
@@ -572,32 +638,37 @@ final class ManualTypeRegistry{
 	private static function registerTransactionData(TypeRegistry $registry) : void{
 		$registry->register(
 			'normal_transaction_data',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
-				return self::readNetworkInventoryActions($in, $protocol);
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+				return self::readNetworkInventoryActions($in, $protocol, $context);
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
-				self::writeNetworkInventoryActions($out, $v['actions'], $protocol);
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+				self::writeNetworkInventoryActions($out, $v['actions'], $protocol, $context);
 			}
 		);
 
 		$registry->register(
 			'mismatch_transaction_data',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
-				return self::readNetworkInventoryActions($in, $protocol);
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+				return self::readNetworkInventoryActions($in, $protocol, $context);
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
-				self::writeNetworkInventoryActions($out, $v['actions'], $protocol);
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+				self::writeNetworkInventoryActions($out, $v['actions'], $protocol, $context);
 			}
 		);
 
 		$registry->register(
 			'use_item_transaction_data',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
-				$base = self::readNetworkInventoryActions($in, $protocol);
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+				$base = self::readNetworkInventoryActions($in, $protocol, $context);
 				return array_merge($base, [
 					'actionType' => VarInt::readUnsignedInt($in),
 					'triggerType' => VarInt::readUnsignedInt($in),
-					'blockPosition' => CommonTypes::getBlockPosition($in),
+					'blockPosition' => function($in, $protocol, $context){
+						if($protocol >= ProtocolVersion::BE_1_26_10){
+							return CommonTypes::getSignedBlockPosition($in);
+						}
+						return CommonTypes::getBlockPosition($in);
+					},
 					'face' => VarInt::readSignedInt($in),
 					'hotbarSlot' => VarInt::readSignedInt($in),
 					'itemInHand' => CommonTypes::getItemStackWrapper($in),
@@ -607,11 +678,15 @@ final class ManualTypeRegistry{
 					'clientInteractPrediction' => VarInt::readUnsignedInt($in),
 				]);
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
-				self::writeNetworkInventoryActions($out, $v['actions'], $protocol);
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+				self::writeNetworkInventoryActions($out, $v['actions'], $protocol, $context);
 				VarInt::writeUnsignedInt($out, $v['actionType']);
 				VarInt::writeUnsignedInt($out, $v['triggerType']);
-				CommonTypes::putBlockPosition($out, $v['blockPosition']);
+				if($protocol >= ProtocolVersion::BE_1_26_10){
+					CommonTypes::putSignedBlockPosition($out, $v['blockPosition']);
+				}else{
+					CommonTypes::putBlockPosition($out, $v['blockPosition']);
+				}
 				VarInt::writeSignedInt($out, $v['face']);
 				VarInt::writeSignedInt($out, $v['hotbarSlot']);
 				CommonTypes::putItemStackWrapper($out, $v['itemInHand']);
@@ -624,8 +699,8 @@ final class ManualTypeRegistry{
 
 		$registry->register(
 			'use_item_on_entity_transaction_data',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
-				$base = self::readNetworkInventoryActions($in, $protocol);
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+				$base = self::readNetworkInventoryActions($in, $protocol, $context);
 				return array_merge($base, [
 					'actorRuntimeId' => CommonTypes::getActorRuntimeId($in),
 					'actionType' => VarInt::readUnsignedInt($in),
@@ -635,8 +710,8 @@ final class ManualTypeRegistry{
 					'clickPosition' => CommonTypes::getVector3($in),
 				]);
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
-				self::writeNetworkInventoryActions($out, $v['actions'], $protocol);
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+				self::writeNetworkInventoryActions($out, $v['actions'], $protocol, $context);
 				CommonTypes::putActorRuntimeId($out, $v['actorRuntimeId']);
 				VarInt::writeUnsignedInt($out, $v['actionType']);
 				VarInt::writeSignedInt($out, $v['hotbarSlot']);
@@ -648,8 +723,8 @@ final class ManualTypeRegistry{
 
 		$registry->register(
 			'release_item_transaction_data',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
-				$base = self::readNetworkInventoryActions($in, $protocol);
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+				$base = self::readNetworkInventoryActions($in, $protocol, $context);
 				return array_merge($base, [
 					'actionType' => VarInt::readUnsignedInt($in),
 					'hotbarSlot' => VarInt::readSignedInt($in),
@@ -657,8 +732,8 @@ final class ManualTypeRegistry{
 					'headPosition' => CommonTypes::getVector3($in),
 				]);
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
-				self::writeNetworkInventoryActions($out, $v['actions'], $protocol);
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+				self::writeNetworkInventoryActions($out, $v['actions'], $protocol, $context);
 				VarInt::writeUnsignedInt($out, $v['actionType']);
 				VarInt::writeSignedInt($out, $v['hotbarSlot']);
 				CommonTypes::putItemStackWrapper($out, $v['itemInHand']);
@@ -667,7 +742,7 @@ final class ManualTypeRegistry{
 		);
 	}
 
-	private static function readNetworkInventoryActions(ByteBufferReader $in, int $protocol) : array{
+	private static function readNetworkInventoryActions(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 		$actions = [];
 		$count = VarInt::readUnsignedInt($in);
 		for($i = 0; $i < $count; $i++){
@@ -697,7 +772,7 @@ final class ManualTypeRegistry{
 		return ['actions' => $actions];
 	}
 
-	private static function writeNetworkInventoryActions(ByteBufferWriter $out, array $actions, int $protocol) : void{
+	private static function writeNetworkInventoryActions(ByteBufferWriter $out, array $actions, int $protocol, PacketContext $context) : void{
 		VarInt::writeUnsignedInt($out, count($actions));
 		foreach($actions as $action){
 			VarInt::writeUnsignedInt($out, $action['sourceType']);
@@ -721,13 +796,13 @@ final class ManualTypeRegistry{
 	private static function registerPackSettings(TypeRegistry $registry) : void{
 		$registry->register(
 			'float_pack_setting',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$name = CommonTypes::getString($in);
 				$typeId = VarInt::readUnsignedInt($in); // PackSettingType::FLOAT = 0
 				$value = LE::readFloat($in);
 				return ['name' => $name, 'typeId' => $typeId, 'value' => $value];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putString($out, $v['name']);
 				VarInt::writeUnsignedInt($out, $v['typeId']);
 				LE::writeFloat($out, $v['value']);
@@ -736,13 +811,13 @@ final class ManualTypeRegistry{
 
 		$registry->register(
 			'bool_pack_setting',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$name = CommonTypes::getString($in);
 				$typeId = VarInt::readUnsignedInt($in); // PackSettingType::BOOL = 1
 				$value = CommonTypes::getBool($in);
 				return ['name' => $name, 'typeId' => $typeId, 'value' => $value];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putString($out, $v['name']);
 				VarInt::writeUnsignedInt($out, $v['typeId']);
 				CommonTypes::putBool($out, $v['value']);
@@ -751,13 +826,13 @@ final class ManualTypeRegistry{
 
 		$registry->register(
 			'string_pack_setting',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$name = CommonTypes::getString($in);
 				$typeId = VarInt::readUnsignedInt($in); // PackSettingType::STRING = 2
 				$value = CommonTypes::getString($in);
 				return ['name' => $name, 'typeId' => $typeId, 'value' => $value];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putString($out, $v['name']);
 				VarInt::writeUnsignedInt($out, $v['typeId']);
 				CommonTypes::putString($out, $v['value']);
@@ -768,7 +843,7 @@ final class ManualTypeRegistry{
 	private static function registerSerializableVoxelCells(TypeRegistry $registry) : void{
 		$registry->register(
 			'serializable_voxel_cells',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$xSize = Byte::readUnsigned($in);
 				$ySize = Byte::readUnsigned($in);
 				$zSize = Byte::readUnsigned($in);
@@ -784,7 +859,7 @@ final class ManualTypeRegistry{
 					'storage' => $storage,
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				Byte::writeUnsigned($out, $v['xSize']);
 				Byte::writeUnsigned($out, $v['ySize']);
 				Byte::writeUnsigned($out, $v['zSize']);
@@ -796,10 +871,90 @@ final class ManualTypeRegistry{
 		);
 	}
 
+	private static function registerSerializableVoxelShape(TypeRegistry $registry) : void{
+		$registry->register(
+			'serializable_voxel_shape',
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) use($registry) : array{
+				if($protocol >= ProtocolVersion::BE_1_26_10){
+					$cells = $registry->read($in, 'serializable_voxel_cells', $protocol, $context);
+				}else{
+					$xSize = Byte::readUnsigned($in);
+					$ySize = Byte::readUnsigned($in);
+					$zSize = Byte::readUnsigned($in);
+					$storage = [];
+					$count = VarInt::readUnsignedInt($in);
+					for($i = 0; $i < $count; $i++){
+						$storage[] = Byte::readUnsigned($in);
+					}
+					$cells = [
+						'xSize' => $xSize,
+						'ySize' => $ySize,
+						'zSize' => $zSize,
+						'storage' => $storage,
+					];
+				}
+
+				$xCoordinates = [];
+				$xCount = VarInt::readUnsignedInt($in);
+				for($i = 0; $i < $xCount; $i++){
+					$xCoordinates[] = LE::readFloat($in);
+				}
+
+				$yCoordinates = [];
+				$yCount = VarInt::readUnsignedInt($in);
+				for($i = 0; $i < $yCount; $i++){
+					$yCoordinates[] = LE::readFloat($in);
+				}
+
+				$zCoordinates = [];
+				$zCount = VarInt::readUnsignedInt($in);
+				for($i = 0; $i < $zCount; $i++){
+					$zCoordinates[] = LE::readFloat($in);
+				}
+
+				return [
+					'cells' => $cells,
+					'xCoordinates' => $xCoordinates,
+					'yCoordinates' => $yCoordinates,
+					'zCoordinates' => $zCoordinates,
+				];
+			},
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) use($registry) : void{
+				if($protocol >= ProtocolVersion::BE_1_26_10){
+					$registry->write($out, 'serializable_voxel_cells', $v['cells'], $protocol, $context);
+				}else{
+					$cells = $v['cells'];
+					Byte::writeUnsigned($out, $cells['xSize']);
+					Byte::writeUnsigned($out, $cells['ySize']);
+					Byte::writeUnsigned($out, $cells['zSize']);
+					VarInt::writeUnsignedInt($out, count($cells['storage']));
+					foreach($cells['storage'] as $byte){
+						Byte::writeUnsigned($out, $byte);
+					}
+				}
+
+				VarInt::writeUnsignedInt($out, count($v['xCoordinates']));
+				foreach($v['xCoordinates'] as $f){
+					LE::writeFloat($out, $f);
+				}
+
+				VarInt::writeUnsignedInt($out, count($v['yCoordinates']));
+				foreach($v['yCoordinates'] as $f){
+					LE::writeFloat($out, $f);
+				}
+
+				VarInt::writeUnsignedInt($out, count($v['zCoordinates']));
+				foreach($v['zCoordinates'] as $f){
+					LE::writeFloat($out, $f);
+				}
+			}
+		);
+	}
+
 	private static function registerCameraSplineInstruction(TypeRegistry $registry) : void{
 		$registry->register(
 			'camera_spline_instruction',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$totalTime = LE::readFloat($in);
 				$easeType = Byte::readUnsigned($in);
 
@@ -836,7 +991,7 @@ final class ManualTypeRegistry{
 					'rotationOptions' => $rotationOptions,
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				LE::writeFloat($out, $v['totalTime']);
 				Byte::writeUnsigned($out, $v['easeType']);
 
@@ -864,7 +1019,7 @@ final class ManualTypeRegistry{
 	private static function registerCameraAimAssistCategoryPriorities(TypeRegistry $registry) : void{
 		$registry->register(
 			'camera_aim_assist_category_priorities',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$readList = static function(ByteBufferReader $in) : array{
 					$items = [];
 					$count = VarInt::readUnsignedInt($in);
@@ -885,7 +1040,7 @@ final class ManualTypeRegistry{
 					'defaultBlockPriority' => CommonTypes::readOptional($in, LE::readSignedInt(...)),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				$writeList = static function(ByteBufferWriter $out, array $items) : void{
 					VarInt::writeUnsignedInt($out, count($items));
 					foreach($items as $item){
@@ -906,7 +1061,7 @@ final class ManualTypeRegistry{
 	private static function registerCameraAimAssistPresetExclusionDefinition(TypeRegistry $registry) : void{
 		$registry->register(
 			'camera_aim_assist_preset_exclusion_definition',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$readStringList = static function(ByteBufferReader $in) : array{
 					$items = [];
 					$count = VarInt::readUnsignedInt($in);
@@ -922,7 +1077,7 @@ final class ManualTypeRegistry{
 					'entityTypeFamilies' => $readStringList($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				$writeStringList = static function(ByteBufferWriter $out, array $items) : void{
 					VarInt::writeUnsignedInt($out, count($items));
 					foreach($items as $s){
@@ -940,13 +1095,13 @@ final class ManualTypeRegistry{
 	private static function registerCameraAimAssistPresetItemSettings(TypeRegistry $registry) : void{
 		$registry->register(
 			'camera_aim_assist_preset_item_settings',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'itemIdentifier' => CommonTypes::getString($in),
 					'categoryName' => CommonTypes::getString($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putString($out, $v['itemIdentifier']);
 				CommonTypes::putString($out, $v['categoryName']);
 			}
@@ -956,7 +1111,7 @@ final class ManualTypeRegistry{
 	private static function registerOptionalServerJoinInformation(TypeRegistry $registry) : void{
 		$registry->register(
 			'server_join_information',
-			reader: static function(ByteBufferReader $in, int $protocol) : string{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : string{
 				$hasValueByte = $in->readByteArray(1);
 				$hasValue = ord($hasValueByte) !== 0;
 				if(!$hasValue) return $hasValueByte;
@@ -974,7 +1129,7 @@ final class ManualTypeRegistry{
 				$boolByte = $in->readByteArray(1);
 				return $hasValueByte . $lenBytes . $strBytes . $boolByte;
 			},
-			writer: static function(ByteBufferWriter $out, string $rawBytes, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, string $rawBytes, int $protocol, PacketContext $context) : void{
 				foreach(str_split($rawBytes) as $byte){
 					Byte::writeUnsigned($out, ord($byte));
 				}
@@ -985,7 +1140,7 @@ final class ManualTypeRegistry{
 	private static function registerAbilitiesLayer(TypeRegistry $registry) : void{
 		$registry->register(
 			'abilities_layer',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'layerId' => LE::readUnsignedShort($in),
 					'setAbilities' => LE::readUnsignedInt($in),
@@ -995,7 +1150,7 @@ final class ManualTypeRegistry{
 					'walkSpeed' => LE::readFloat($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				LE::writeUnsignedShort($out, $v['layerId']);
 				LE::writeUnsignedInt($out, $v['setAbilities']);
 				LE::writeUnsignedInt($out, $v['setAbilitiesValue']);
@@ -1009,13 +1164,13 @@ final class ManualTypeRegistry{
 	private static function registerItemStackRequest(TypeRegistry $registry) : void{
 		$registry->register(
 			'item_stack_request',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$requestId = CommonTypes::readItemStackRequestId($in);
 				$actions = [];
 				$count = VarInt::readUnsignedInt($in);
 				for($i = 0; $i < $count; $i++){
 					$typeId = Byte::readUnsigned($in);
-					$actions[] = ['typeId' => $typeId, 'payload' => self::readActionPayload($in, $typeId, $protocol)];
+					$actions[] = ['typeId' => $typeId, 'payload' => self::readActionPayload($in, $typeId, $protocol, $context)];
 				}
 				$filterStrings = [];
 				$filterCount = VarInt::readUnsignedInt($in);
@@ -1029,24 +1184,24 @@ final class ManualTypeRegistry{
 					'filterCause' => LE::readSignedInt($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::writeItemStackRequestId($out, $v['requestId']);
 				VarInt::writeUnsignedInt($out, count($v['actions']));
 				foreach($v['actions'] as $action){
 					Byte::writeUnsigned($out, $action['typeId']);
-					self::writeActionPayload($out, $action['typeId'], $action['payload'], $protocol);
+					self::writeActionPayload($out, $action['typeId'], $action['payload'], $protocol, $context);
 				}
 				VarInt::writeUnsignedInt($out, count($v['filterStrings']));
 				foreach($v['filterStrings'] as $s) CommonTypes::putString($out, $s);
 				LE::writeSignedInt($out, $v['filterCause']);
-			}
+			},
 		);
 	}
 
 	private static function registerAttributeModifier(TypeRegistry $registry) : void{
 		$registry->register(
 			'attribute_modifier',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'id' => CommonTypes::getString($in),
 					'name' => CommonTypes::getString($in),
@@ -1056,7 +1211,7 @@ final class ManualTypeRegistry{
 					'serializable' => CommonTypes::getBool($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putString($out, $v['id']);
 				CommonTypes::putString($out, $v['name']);
 				LE::writeFloat($out, $v['amount']);
@@ -1070,15 +1225,25 @@ final class ManualTypeRegistry{
 	private static function registerChainedSubCommandValueRawData(TypeRegistry $registry) : void{
 		$registry->register(
 			'chained_sub_command_value_raw_data',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
-				return [
-					'nameIndex' => VarInt::readUnsignedInt($in),
-					'type' => VarInt::readUnsignedInt($in),
-				];
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+				$params = [];
+				if($protocol <= ProtocolVersion::BE_1_21_120){
+					$params['nameIndex'] = LE::readUnsignedShort($in);
+					$params['type'] = LE::readUnsignedShort($in);
+				}else{
+					$params['nameIndex'] = VarInt::readUnsignedInt($in);
+					$params['type'] = VarInt::readUnsignedInt($in);
+				}
+				return $params;
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
-				VarInt::writeUnsignedInt($out, $v['nameIndex']);
-				VarInt::writeUnsignedInt($out, $v['type']);
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+				if($protocol <= ProtocolVersion::BE_1_21_120){
+					LE::writeUnsignedShort($out, $v['nameIndex']);
+					LE::writeUnsignedShort($out, $v['type']);
+				}else{
+					VarInt::writeUnsignedInt($out, $v['nameIndex']);
+					VarInt::writeUnsignedInt($out, $v['type']);
+				}
 			}
 		);
 	}
@@ -1086,7 +1251,7 @@ final class ManualTypeRegistry{
 	private static function registerItemTypeEntry(TypeRegistry $registry) : void{
 		$registry->register(
 			'item_type_entry',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'stringId' => CommonTypes::getString($in),
 					'numericId' => LE::readSignedShort($in),
@@ -1095,7 +1260,7 @@ final class ManualTypeRegistry{
 					'nbt' => (new CacheableNbt(CommonTypes::getNbtCompoundRoot($in)))->getEncodedNbt(),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putString($out, $v['stringId']);
 				LE::writeSignedShort($out, $v['numericId']);
 				CommonTypes::putBool($out, $v['isComponentBased']);
@@ -1108,10 +1273,10 @@ final class ManualTypeRegistry{
 	private static function registerCommandEnumConstraint(TypeRegistry $registry) : void{
 		$registry->register(
 			'command_enum_constraint',
-			reader: static function(ByteBufferReader $in, int $protocol) : int{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : int{
 				return Byte::readUnsigned($in);
 			},
-			writer: static function(ByteBufferWriter $out, int $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, int $v, int $protocol, PacketContext $context) : void{
 				Byte::writeUnsigned($out, $v);
 			}
 		);
@@ -1120,7 +1285,7 @@ final class ManualTypeRegistry{
 	private static function registerCommandOverload(TypeRegistry $registry) : void{
 		$registry->register(
 			'command_overload_raw_data',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$isChained = CommonTypes::getBool($in);
 				$params = [];
 				$count = VarInt::readUnsignedInt($in);
@@ -1134,7 +1299,7 @@ final class ManualTypeRegistry{
 				}
 				return ['isChained' => $isChained, 'params' => $params];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putBool($out, $v['isChained']);
 				VarInt::writeUnsignedInt($out, count($v['params']));
 				foreach($v['params'] as $p){
@@ -1150,10 +1315,10 @@ final class ManualTypeRegistry{
 	private static function registerCommandEnumValueIndex(TypeRegistry $registry) : void{
 		$registry->register(
 			'command_enum_value_index',
-			reader: static function(ByteBufferReader $in, int $protocol) : int{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : int{
 				return LE::readUnsignedInt($in);
 			},
-			writer: static function(ByteBufferWriter $out, int $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, int $v, int $protocol, PacketContext $context) : void{
 				LE::writeUnsignedInt($out, $v);
 			}
 		);
@@ -1162,10 +1327,10 @@ final class ManualTypeRegistry{
 	private static function registerChangedSlot(TypeRegistry $registry) : void{
 		$registry->register(
 			'changed_slot',
-			reader: static function(ByteBufferReader $in, int $protocol) : int{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : int{
 				return Byte::readUnsigned($in);
 			},
-			writer: static function(ByteBufferWriter $out, int $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, int $v, int $protocol, PacketContext $context) : void{
 				Byte::writeUnsigned($out, $v);
 			}
 		);
@@ -1174,11 +1339,53 @@ final class ManualTypeRegistry{
 	private static function registerCommandSoftEnumValue(TypeRegistry $registry) : void{
 		$registry->register(
 			'command_soft_enum_value',
-			reader: static function(ByteBufferReader $in, int $protocol) : string{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : string{
 				return CommonTypes::getString($in);
 			},
-			writer: static function(ByteBufferWriter $out, string $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, string $v, int $protocol, PacketContext $context) : void{
 				CommonTypes::putString($out, $v);
+			}
+		);
+	}
+
+	private static function registerEnumValueIndexes(TypeRegistry $registry) : void{
+		$registry->register(
+			'enums_value_indexes',
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+				$size = VarInt::readUnsignedInt($in);
+				$params = [];
+				$enumValuesCount = $context->get('enumValuesCount');
+				for($i = 0; $i < $size; $i++){
+					if($protocol <= ProtocolVersion::BE_1_21_120){
+						$params[] = [
+							'valueIndexes' => match(true){
+								$enumValuesCount < 256 => Byte::readUnsigned($in),
+								$enumValuesCount < 65536 => LE::readUnsignedShort($in),
+								default => LE::readUnsignedInt($in)
+							}
+						];
+					}else{
+						$params[] = [
+							'valueIndexes' => LE::readUnsignedInt($in)
+						];
+					}
+				}
+				return ['size' => $size, 'params' => $params];
+			},
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+				VarInt::writeUnsignedInt($out, $v['size']);
+				$enumValuesCount = $context->get('enumValuesCount');
+				foreach($v['params'] as $p){
+					if($protocol <= ProtocolVersion::BE_1_21_120){
+						match(true){
+							$enumValuesCount < 256 => Byte::writeUnsigned($out, $p['valueIndexes']),
+							$enumValuesCount < 65536 => LE::writeUnsignedShort($out, $p['valueIndexes']),
+							default => LE::writeUnsignedInt($out, $p['valueIndexes'])
+						};
+					}else{
+						LE::writeUnsignedInt($out, $p['valueIndexes']);
+					}
+				}
 			}
 		);
 	}
@@ -1186,7 +1393,7 @@ final class ManualTypeRegistry{
 	private static function registerOptionalBiomeDefinitionTags(TypeRegistry $registry) : void{
 		$registry->register(
 			'biome_definition_tags',
-			reader: static function(ByteBufferReader $in, int $protocol) : ?array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : ?array{
 				$hasValue = Byte::readUnsigned($in) !== 0;
 				if(!$hasValue) return null;
 				$tags = [];
@@ -1196,7 +1403,7 @@ final class ManualTypeRegistry{
 				}
 				return $tags;
 			},
-			writer: static function(ByteBufferWriter $out, ?array $tags, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, ?array $tags, int $protocol, PacketContext $context) : void{
 				if($tags === null){ Byte::writeUnsigned($out, 0); return; }
 				Byte::writeUnsigned($out, 1);
 				VarInt::writeUnsignedInt($out, count($tags));
@@ -1208,126 +1415,160 @@ final class ManualTypeRegistry{
 	private static function registerOptionalBiomeDefinitionChunkGenData(TypeRegistry $registry) : void{
 		$registry->register(
 			'biome_definition_chunk_gen_data',
-			reader: static function(ByteBufferReader $in, int $protocol) : ?array{
-				return BiomeChunkGenParser::read($in, $protocol);
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : ?array{
+				return BiomeChunkGenParser::read($in, $protocol, $context);
 			},
-			writer: static function(ByteBufferWriter $out, ?array $value, int $protocol) : void{
-				BiomeChunkGenParser::write($out, $value, $protocol);
+			writer: static function(ByteBufferWriter $out, ?array $value, int $protocol, PacketContext $context) : void{
+				BiomeChunkGenParser::write($out, $value, $protocol, $context);
 			}
 		);
 	}
 
-	private static function registerOptionalLEUnsignedInt(TypeRegistry $registry) : void{
-		$registry->register(
-			'l_e',
-			reader: static function(ByteBufferReader $in, int $protocol) : ?int{
-				return CommonTypes::readOptional($in, LE::readUnsignedInt(...));
-			},
-			writer: static function(ByteBufferWriter $out, ?int $v, int $protocol) : void{
-				CommonTypes::writeOptional($out, $v, LE::writeUnsignedInt(...));
-			}
-		);
-	}
+	private const ACTION_TAKE = ItemStackRequestActionType::TAKE; // 0
+	private const ACTION_PLACE = ItemStackRequestActionType::PLACE; // 1
+	private const ACTION_SWAP = ItemStackRequestActionType::SWAP; // 2
+	private const ACTION_DROP = ItemStackRequestActionType::DROP; // 3
+	private const ACTION_DESTROY = ItemStackRequestActionType::DESTROY; // 4
+	private const ACTION_CRAFTING_CONSUME_INPUT = ItemStackRequestActionType::CRAFTING_CONSUME_INPUT; // 5
+	private const ACTION_CRAFTING_CREATE_SPECIFIC = ItemStackRequestActionType::CRAFTING_CREATE_SPECIFIC_RESULT; // 6
+	private const ACTION_LAB_TABLE_COMBINE = ItemStackRequestActionType::LAB_TABLE_COMBINE; // 9
+	private const ACTION_BEACON_PAYMENT = ItemStackRequestActionType::BEACON_PAYMENT; // 10
+	private const ACTION_MINE_BLOCK = ItemStackRequestActionType::MINE_BLOCK; // 11
+	private const ACTION_CRAFTING_RECIPE = ItemStackRequestActionType::CRAFTING_RECIPE; // 12
+	private const ACTION_CRAFTING_RECIPE_AUTO = ItemStackRequestActionType::CRAFTING_RECIPE_AUTO; // 13
+	private const ACTION_CREATIVE_CREATE = ItemStackRequestActionType::CREATIVE_CREATE; // 14
+	private const ACTION_CRAFTING_RECIPE_OPTIONAL = ItemStackRequestActionType::CRAFTING_RECIPE_OPTIONAL; // 15
+	private const ACTION_CRAFTING_GRINDSTONE = ItemStackRequestActionType::CRAFTING_GRINDSTONE; // 16
+	private const ACTION_CRAFTING_LOOM = ItemStackRequestActionType::CRAFTING_LOOM; // 17
+	private const ACTION_CRAFTING_NON_IMPLEMENTED = ItemStackRequestActionType::CRAFTING_NON_IMPLEMENTED_DEPRECATED_ASK_TY_LAING; // 18
+	private const ACTION_CRAFTING_RESULTS_DEPRECATED = ItemStackRequestActionType::CRAFTING_RESULTS_DEPRECATED_ASK_TY_LAING; // 19
 
-	private static function readActionPayload(ByteBufferReader $in, int $typeId, int $protocol) : array{
+	private static function readActionPayload(ByteBufferReader $in, int $typeId, int $protocol, PacketContext $context) : array{
 		return match($typeId){
-			0, 1, 18, 19 => self::readSlotTransfer($in, $protocol),
-			2 => self::readSlotSwap($in, $protocol),
-			3 => self::readDrop($in, $protocol),
-			4, 5 => self::readSingleSlot($in, $protocol),
-			6 => ['resultIndex' => VarInt::readUnsignedInt($in)],
-			8 => ['primaryEffect' => VarInt::readSignedInt($in), 'secondaryEffect' => VarInt::readSignedInt($in)],
-			9 => ['hotbarSlot' => VarInt::readSignedInt($in), 'predictedDurability' => VarInt::readSignedInt($in), 'stackId' => CommonTypes::readItemStackNetIdVariant($in)],
-			10 => ['recipeId' => CommonTypes::readRecipeNetId($in), 'repetitions' => Byte::readUnsigned($in)],
-			11 => self::readCraftRecipeAuto($in, $protocol),
-			12 => ['creativeItemNetId' => VarInt::readUnsignedInt($in)],
-			13 => ['recipeId' => CommonTypes::readRecipeNetId($in), 'filterStringIndex' => LE::readSignedInt($in)],
-			14 => ['creativeItemId' => CommonTypes::readCreativeItemNetId($in), 'repetitions' => Byte::readUnsigned($in)],
-			16 => ['recipeId' => CommonTypes::readRecipeNetId($in), 'repairCost' => VarInt::readSignedInt($in), 'repetitions' => Byte::readUnsigned($in)],
-			17 => ['patternId' => CommonTypes::getString($in), 'repetitions' => Byte::readUnsigned($in)],
-			21 => self::readDeprecatedResults($in, $protocol),
+			self::ACTION_TAKE,
+			self::ACTION_PLACE => self::readSlotTransfer($in, $protocol, $context),
+			self::ACTION_SWAP => self::readSlotSwap($in, $protocol, $context),
+			self::ACTION_DROP => self::readDrop($in, $protocol, $context),
+			self::ACTION_DESTROY,
+			self::ACTION_CRAFTING_CONSUME_INPUT => self::readSingleSlot($in, $protocol, $context),
+			self::ACTION_CRAFTING_CREATE_SPECIFIC => ['resultIndex' => Byte::readUnsigned($in)],
+			self::ACTION_LAB_TABLE_COMBINE => [],
+			self::ACTION_BEACON_PAYMENT => ['primaryEffect' => VarInt::readSignedInt($in), 'secondaryEffect' => VarInt::readSignedInt($in)],
+			self::ACTION_MINE_BLOCK => ['hotbarSlot' => VarInt::readSignedInt($in), 'predictedDurability' => VarInt::readSignedInt($in), 'stackId' => CommonTypes::readItemStackNetIdVariant($in)],
+			self::ACTION_CRAFTING_RECIPE => ['recipeId' => CommonTypes::readRecipeNetId($in), 'repetitions' => Byte::readUnsigned($in)],
+			self::ACTION_CRAFTING_RECIPE_AUTO => self::readCraftRecipeAuto($in, $protocol, $context),
+			self::ACTION_CREATIVE_CREATE => ['creativeItemId' => CommonTypes::readCreativeItemNetId($in), 'repetitions' => Byte::readUnsigned($in)],
+			self::ACTION_CRAFTING_RECIPE_OPTIONAL => ['recipeId' => CommonTypes::readRecipeNetId($in), 'filterStringIndex' => LE::readSignedInt($in)],
+			self::ACTION_CRAFTING_GRINDSTONE => ['recipeId' => CommonTypes::readRecipeNetId($in), 'repairCost' => VarInt::readSignedInt($in), 'repetitions' => Byte::readUnsigned($in)],
+			self::ACTION_CRAFTING_LOOM => ['patternId' => CommonTypes::getString($in), 'repetitions' => Byte::readUnsigned($in)],
+			self::ACTION_CRAFTING_NON_IMPLEMENTED => [],
+			self::ACTION_CRAFTING_RESULTS_DEPRECATED => self::readDeprecatedResults($in, $protocol, $context),
 			default => throw new \RuntimeException("Unknown ItemStackRequestAction typeId=$typeId"),
 		};
 	}
 
-	private static function writeActionPayload(ByteBufferWriter $out, int $typeId, array $payload, int $protocol) : void{
+	private static function writeActionPayload(ByteBufferWriter $out, int $typeId, array $payload, int $protocol, PacketContext $context) : void{
 		match($typeId){
-			0, 1, 18, 19 => self::writeSlotTransfer($out, $payload, $protocol),
-			2 => self::writeSlotSwap($out, $payload, $protocol),
-			3 => self::writeDrop($out, $payload, $protocol),
-			4, 5 => self::writeSingleSlot($out, $payload, $protocol),
-			6 => VarInt::writeUnsignedInt($out, $payload['resultIndex']),
-			8 => (static function() use($out, $payload){
+			self::ACTION_TAKE,
+			self::ACTION_PLACE => self::writeSlotTransfer($out, $payload, $protocol, $context),
+			self::ACTION_SWAP => self::writeSlotSwap($out, $payload, $protocol, $context),
+			self::ACTION_DROP => self::writeDrop($out, $payload, $protocol, $context),
+			self::ACTION_DESTROY,
+			self::ACTION_CRAFTING_CONSUME_INPUT => self::writeSingleSlot($out, $payload, $protocol, $context),
+			self::ACTION_CRAFTING_CREATE_SPECIFIC => (static function() use($out, $payload) : void{
+								Byte::writeUnsigned($out, $payload['resultIndex']);
+							})(),
+			self::ACTION_LAB_TABLE_COMBINE => (static function() : void{
+								// no payload
+							})(),
+			self::ACTION_BEACON_PAYMENT => (static function() use($out, $payload) : void{
 								VarInt::writeSignedInt($out, $payload['primaryEffect']);
 								VarInt::writeSignedInt($out, $payload['secondaryEffect']);
 							})(),
-			9 => (static function() use($out, $payload){
+			self::ACTION_MINE_BLOCK => (static function() use($out, $payload) : void{
 								VarInt::writeSignedInt($out, $payload['hotbarSlot']);
 								VarInt::writeSignedInt($out, $payload['predictedDurability']);
 								CommonTypes::writeItemStackNetIdVariant($out, $payload['stackId']);
 							})(),
-			10 => (static function() use($out, $payload){
+			self::ACTION_CRAFTING_RECIPE => (static function() use($out, $payload) : void{
 								CommonTypes::writeRecipeNetId($out, $payload['recipeId']);
 								Byte::writeUnsigned($out, $payload['repetitions']);
 							})(),
-			11 => self::writeCraftRecipeAuto($out, $payload, $protocol),
-			12 => VarInt::writeUnsignedInt($out, $payload['creativeItemNetId']),
-			13 => (static function() use($out, $payload){
-								CommonTypes::writeRecipeNetId($out, $payload['recipeId']);
-								LE::writeSignedInt($out, $payload['filterStringIndex']);
-							})(),
-			14 => (static function() use($out, $payload){
+			self::ACTION_CRAFTING_RECIPE_AUTO => self::writeCraftRecipeAuto($out, $payload, $protocol, $context),
+			self::ACTION_CREATIVE_CREATE => (static function() use($out, $payload) : void{
 								CommonTypes::writeCreativeItemNetId($out, $payload['creativeItemId']);
 								Byte::writeUnsigned($out, $payload['repetitions']);
 							})(),
-			16 => (static function() use($out, $payload){
+			self::ACTION_CRAFTING_RECIPE_OPTIONAL => (static function() use($out, $payload) : void{
+								CommonTypes::writeRecipeNetId($out, $payload['recipeId']);
+								LE::writeSignedInt($out, $payload['filterStringIndex']);
+							})(),
+			self::ACTION_CRAFTING_GRINDSTONE => (static function() use($out, $payload) : void{
 								CommonTypes::writeRecipeNetId($out, $payload['recipeId']);
 								VarInt::writeSignedInt($out, $payload['repairCost']);
 								Byte::writeUnsigned($out, $payload['repetitions']);
 							})(),
-			17 => (static function() use($out, $payload){
+			self::ACTION_CRAFTING_LOOM => (static function() use($out, $payload) : void{
 								CommonTypes::putString($out, $payload['patternId']);
 								Byte::writeUnsigned($out, $payload['repetitions']);
 							})(),
-			21 => self::writeDeprecatedResults($out, $payload, $protocol),
+			self::ACTION_CRAFTING_NON_IMPLEMENTED => (static function() : void{
+								// no payload
+							})(),
+			self::ACTION_CRAFTING_RESULTS_DEPRECATED => self::writeDeprecatedResults($out, $payload, $protocol, $context),
 			default => throw new \RuntimeException("Unknown ItemStackRequestAction typeId=$typeId"),
 		};
 	}
 
-	private static function readSlotInfo(ByteBufferReader $in, int $protocol) : array{
-		return ['containerId' => Byte::readUnsigned($in), 'dynamicContainerId' => VarInt::readUnsignedInt($in), 'slotId' => Byte::readUnsigned($in), 'stackId' => CommonTypes::readItemStackNetIdVariant($in)];
+	private static function readSlotInfo(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+		$params = [];
+		$params['containerId'] = Byte::readUnsigned($in);
+		$params['dynamicContainerId'] = CommonTypes::readOptional($in, LE::readUnsignedInt(...));
+		$params['slotId'] = Byte::readUnsigned($in);
+		$params['stackId'] = CommonTypes::readItemStackNetIdVariant($in);
+		return $params;
 	}
-	private static function writeSlotInfo(ByteBufferWriter $out, array $slot, int $protocol) : void{
+
+	private static function writeSlotInfo(ByteBufferWriter $out, array $slot, int $protocol, PacketContext $context) : void{
 		Byte::writeUnsigned($out, $slot['containerId']);
-		VarInt::writeUnsignedInt($out, $slot['dynamicContainerId']);
+		CommonTypes::writeOptional($out, $slot['dynamicContainerId'] ?? null, LE::writeUnsignedInt(...));
 		Byte::writeUnsigned($out, $slot['slotId']);
 		CommonTypes::writeItemStackNetIdVariant($out, $slot['stackId']);
 	}
-	private static function readSlotTransfer(ByteBufferReader $in, int $protocol) : array{
-		return ['count' => Byte::readUnsigned($in), 'src' => self::readSlotInfo($in, $protocol), 'dst' => self::readSlotInfo($in, $protocol)];
+
+	private static function readSlotTransfer(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+		return ['count' => Byte::readUnsigned($in), 'src' => self::readSlotInfo($in, $protocol, $context), 'dst' => self::readSlotInfo($in, $protocol, $context)];
 	}
-	private static function writeSlotTransfer(ByteBufferWriter $out, array $v, int $protocol) : void{
-		Byte::writeUnsigned($out, $v['count']); self::writeSlotInfo($out, $v['src'], $protocol); self::writeSlotInfo($out, $v['dst'], $protocol);
+
+	private static function writeSlotTransfer(ByteBufferWriter $out, array $v, int $protocol, $context) : void{
+		Byte::writeUnsigned($out, $v['count']); self::writeSlotInfo($out, $v['src'], $protocol, $context); self::writeSlotInfo($out, $v['dst'], $protocol, $context);
 	}
-	private static function readSlotSwap(ByteBufferReader $in, int $protocol) : array{
-		return ['src' => self::readSlotInfo($in, $protocol), 'dst' => self::readSlotInfo($in, $protocol)];
+
+	private static function readSlotSwap(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+		return ['src' => self::readSlotInfo($in, $protocol, $context), 'dst' => self::readSlotInfo($in, $protocol, $context)];
 	}
-	private static function writeSlotSwap(ByteBufferWriter $out, array $v, int $protocol) : void{
-		self::writeSlotInfo($out, $v['src'], $protocol); self::writeSlotInfo($out, $v['dst'], $protocol);
+
+	private static function writeSlotSwap(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+		self::writeSlotInfo($out, $v['src'], $protocol, $context); self::writeSlotInfo($out, $v['dst'], $protocol, $context);
 	}
-	private static function readDrop(ByteBufferReader $in, int $protocol) : array{
-		return ['count' => Byte::readUnsigned($in), 'src' => self::readSlotInfo($in, $protocol), 'randomDrop' => Byte::readUnsigned($in) !== 0];
+
+	private static function readDrop(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+		return ['count' => Byte::readUnsigned($in), 'src' => self::readSlotInfo($in, $protocol, $context), 'randomDrop' => Byte::readUnsigned($in) !== 0];
 	}
-	private static function writeDrop(ByteBufferWriter $out, array $v, int $protocol) : void{
-		Byte::writeUnsigned($out, $v['count']); self::writeSlotInfo($out, $v['src'], $protocol); Byte::writeUnsigned($out, $v['randomDrop'] ? 1 : 0);
+
+	private static function writeDrop(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+		Byte::writeUnsigned($out, $v['count']); self::writeSlotInfo($out, $v['src'], $protocol, $context); Byte::writeUnsigned($out, $v['randomDrop'] ? 1 : 0);
 	}
-	private static function readSingleSlot(ByteBufferReader $in, int $protocol) : array{
-		return ['count' => Byte::readUnsigned($in), 'src' => self::readSlotInfo($in, $protocol)];
+
+	private static function readSingleSlot(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+		return ['count' => Byte::readUnsigned($in), 'src' => self::readSlotInfo($in, $protocol, $context)];
 	}
-	private static function writeSingleSlot(ByteBufferWriter $out, array $v, int $protocol) : void{
-		Byte::writeUnsigned($out, $v['count']); self::writeSlotInfo($out, $v['src'], $protocol);
+
+	private static function writeSingleSlot(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+		Byte::writeUnsigned($out, $v['count']); self::writeSlotInfo($out, $v['src'], $protocol, $context);
 	}
-	private static function readCraftRecipeAuto(ByteBufferReader $in, int $protocol) : array{
+
+	private static function readCraftRecipeAuto(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 		$recipeId = CommonTypes::readRecipeNetId($in);
 		$rep1 = Byte::readUnsigned($in);
 		$rep2 = Byte::readUnsigned($in);
@@ -1336,20 +1577,23 @@ final class ManualTypeRegistry{
 		for($i = 0; $i < $count; $i++) $ingredients[] = CommonTypes::getRecipeIngredient($in);
 		return ['recipeId' => $recipeId, 'repetitions' => $rep1, 'repetitions2' => $rep2, 'ingredients' => $ingredients];
 	}
-	private static function writeCraftRecipeAuto(ByteBufferWriter $out, array $v, int $protocol) : void{
+
+	private static function writeCraftRecipeAuto(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 		CommonTypes::writeRecipeNetId($out, $v['recipeId']);
 		Byte::writeUnsigned($out, $v['repetitions']);
 		Byte::writeUnsigned($out, $v['repetitions2']);
 		Byte::writeUnsigned($out, count($v['ingredients']));
 		foreach($v['ingredients'] as $ingredient) CommonTypes::putRecipeIngredient($out, $ingredient);
 	}
-	private static function readDeprecatedResults(ByteBufferReader $in, int $protocol) : array{
+
+	private static function readDeprecatedResults(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 		$results = [];
 		$len = VarInt::readUnsignedInt($in);
 		for($i = 0; $i < $len; $i++) $results[] = CommonTypes::getItemStackWithoutStackId($in);
 		return ['results' => $results, 'iterations' => Byte::readUnsigned($in)];
 	}
-	private static function writeDeprecatedResults(ByteBufferWriter $out, array $v, int $protocol) : void{
+
+	private static function writeDeprecatedResults(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 		VarInt::writeUnsignedInt($out, count($v['results']));
 		foreach($v['results'] as $result) CommonTypes::putItemStackWithoutStackId($out, $result);
 		Byte::writeUnsigned($out, $v['iterations']);
@@ -1358,7 +1602,7 @@ final class ManualTypeRegistry{
 	private static function registerPlayerListEntry(TypeRegistry $registry) : void{
 		$registry->register(
 			'entry',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 
 				$uuid = CommonTypes::getUUID($in);
 
@@ -1376,7 +1620,7 @@ final class ManualTypeRegistry{
 					'color' => LE::readUnsignedInt($in),
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 
 				CommonTypes::putUUID($out, $v['uuid']);
 				CommonTypes::putActorUniqueId($out, $v['actorUniqueId']);
@@ -1396,12 +1640,12 @@ final class ManualTypeRegistry{
 	private static function registerUpdateAbilitiesPacket(TypeRegistry $registry) : void{
 		$registry->register(
 			'update_abilities_packet',
-			reader: static function(ByteBufferReader $in, int $protocol) : array{
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				return [
 					'data' => AbilitiesData::decode($in)
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol) : void{
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				$v['data']->encode($out);
 			}
 		);

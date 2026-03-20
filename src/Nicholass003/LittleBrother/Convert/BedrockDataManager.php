@@ -33,54 +33,49 @@ use function is_numeric;
 use function scandir;
 use const pocketmine\BEDROCK_DATA_PATH;
 
-final class BedrockDataManager{
+final class BedrockDataManager {
 
+	/** Resolved protocol dirs */
+	private array $protocolDirs = [];
+
+	/** BedrockData instances */
 	private array $protocols = [];
 
 	public function __construct(
 		private string $dataPath
-	){
-		$this->load();
+	) {
+		$this->scanDirs();
 	}
 
-	private function load() : void{
+	private function scanDirs() : void {
+		$base = $this->dataPath . '/bedrock';
 
-		$base = $this->dataPath . "/bedrock";
-
-		if(!is_dir($base)){
+		if (!is_dir($base)) {
 			throw new RuntimeException("Bedrock data folder missing: $base");
 		}
 
-		foreach(scandir($base) as $dir){
-
-			if(!is_numeric($dir)){
+		foreach (scandir($base) as $dir) {
+			if (!is_numeric($dir)) {
 				continue;
 			}
-
-			$protocol = (int) $dir;
-
-			$this->protocols[$protocol] = new BedrockData(
-				$protocol,
-				$base . "/" . $dir
-			);
+			$this->protocolDirs[(int) $dir] = $base . '/' . $dir;
 		}
 
-		$this->protocols[ProtocolInfo::CURRENT_PROTOCOL] = new BedrockData(
-			ProtocolInfo::CURRENT_PROTOCOL,
-			BEDROCK_DATA_PATH
-		);
+		$this->protocolDirs[ProtocolInfo::CURRENT_PROTOCOL] = BEDROCK_DATA_PATH;
 	}
 
-	public function get(int $protocol) : BedrockData{
-
-		if(!isset($this->protocols[$protocol])){
+	public function get(int $protocol) : BedrockData {
+		if (!isset($this->protocolDirs[$protocol])) {
 			throw new RuntimeException("Unsupported protocol $protocol");
 		}
 
-		return $this->protocols[$protocol];
+		return $this->protocols[$protocol] ??= new BedrockData(
+			$protocol,
+			$this->protocolDirs[$protocol]
+		);
 	}
 
-	public function getSupportedProtocols() : array{
-		return array_keys($this->protocols);
+	public function getSupportedProtocols() : array {
+		return array_keys($this->protocolDirs);
 	}
 }

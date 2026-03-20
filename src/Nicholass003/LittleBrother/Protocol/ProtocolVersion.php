@@ -26,16 +26,22 @@ namespace Nicholass003\LittleBrother\Protocol;
 
 final class ProtocolVersion{
 	public const SUPPORTED_PROTOCOLS = [
+		self::BE_1_26_10,
 		self::BE_1_26_0,
-		self::BE_1_21_130
+		self::BE_1_21_130,
+		self::BE_1_21_120,
 	];
 
 	public const MINECRAFT_VERSIONS = [
+		self::BE_1_26_10 => 'v1.26.10',
 		self::BE_1_26_0 => 'v1.26.0',
 		self::BE_1_21_130 => 'v1.21.130',
+		self::BE_1_21_120 => 'v1.21.120',
 	];
 
 	// Protocol version number
+	public const BE_1_26_10 = 944;
 	public const BE_1_26_0 = 924;
 	public const BE_1_21_130 = 898;
+	public const BE_1_21_120 = 860;
 }

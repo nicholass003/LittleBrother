@@ -26,18 +26,86 @@ namespace Nicholass003\LittleBrother\Protocol\Translator\Runtime;
 
 use Nicholass003\LittleBrother\Convert\Block\ChunkTranslator;
 use Nicholass003\LittleBrother\Protocol\Translator\RuntimePacketHandler;
+use pmmp\encoding\ByteBufferReader;
+use pmmp\encoding\ByteBufferWriter;
+use pmmp\encoding\LE;
+use pmmp\encoding\VarInt;
+use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
+use pocketmine\network\mcpe\protocol\types\ChunkPosition;
+use pocketmine\utils\Limits;
+use const PHP_INT_MAX;
 
 final class LevelChunkRuntimeHandler implements RuntimePacketHandler{
 
+	private const CLIENT_REQUEST_FULL_COLUMN_FAKE_COUNT = Limits::UINT32_MAX;
+	private const CLIENT_REQUEST_TRUNCATED_COLUMN_FAKE_COUNT = Limits::UINT32_MAX - 1;
+
 	public function __construct(
-		private ChunkTranslator $chunk
+		private ChunkTranslator $chunkTranslator
 	){}
 
 	public function translateOutbound(int $protocol, string $payload) : string{
-		return $this->chunk->translateChunkOutbound($protocol, $payload);
+		$reader = new ByteBufferReader($payload);
+		$writer = new ByteBufferWriter();
+
+		// ChunkPosition
+		$chunkPos = ChunkPosition::read($reader);
+		$chunkPos->write($writer);
+
+		// Dimension
+		$dimension = VarInt::readSignedInt($reader);
+		VarInt::writeSignedInt($writer, $dimension);
+
+		// subChunkCount
+		$rawCount = VarInt::readUnsignedInt($reader);
+
+		if($rawCount === self::CLIENT_REQUEST_FULL_COLUMN_FAKE_COUNT){
+			VarInt::writeUnsignedInt($writer, $rawCount);
+			$subChunkCount = PHP_INT_MAX;
+			$clientSubChunkMode = true;
+		}elseif($rawCount === self::CLIENT_REQUEST_TRUNCATED_COLUMN_FAKE_COUNT){
+			VarInt::writeUnsignedInt($writer, $rawCount);
+			$truncated = LE::readUnsignedShort($reader);
+			LE::writeUnsignedShort($writer, $truncated);
+			$subChunkCount = $truncated;
+			$clientSubChunkMode = true;
+		}else{
+			VarInt::writeUnsignedInt($writer, $rawCount);
+			$subChunkCount = $rawCount;
+			$clientSubChunkMode = false;
+		}
+
+		$cacheEnabled = CommonTypes::getBool($reader);
+		CommonTypes::putBool($writer, $cacheEnabled);
+
+		if($cacheEnabled){
+			$hashCount = VarInt::readUnsignedInt($reader);
+			VarInt::writeUnsignedInt($writer, $hashCount);
+			for($i = 0; $i < $hashCount; $i++){
+				LE::writeUnsignedLong($writer, LE::readUnsignedLong($reader));
+			}
+		}
+
+		// extraPayload
+		$payloadLength = VarInt::readUnsignedInt($reader);
+		if($payloadLength > $reader->getUnreadLength()){
+			return $payload;
+		}
+
+		$chunkData = $reader->readByteArray($payloadLength);
+
+		$translated = $this->chunkTranslator->translateChunkOutbound(
+			$protocol,
+			$chunkData,
+			$subChunkCount
+		);
+
+		CommonTypes::putString($writer, $translated);
+
+		return $writer->getData();
 	}
 
 	public function translateInbound(int $protocol, string $payload) : string{
-		return $this->chunk->translateChunkInbound($protocol, $payload);
+		return $payload;
 	}
 }
