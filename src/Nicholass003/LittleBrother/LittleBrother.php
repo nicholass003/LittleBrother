@@ -24,8 +24,8 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother;
 
-use Nicholass003\LittleBrother\libs\_40a9381ebc24a7d6\bStats\PocketmineMp\Metrics;
-use Nicholass003\LittleBrother\libs\_40a9381ebc24a7d6\CortexPE\Commando\PacketHooker;
+use Nicholass003\LittleBrother\libs\_75c3983dad1104c7\bStats\PocketmineMp\Metrics;
+use Nicholass003\LittleBrother\libs\_75c3983dad1104c7\CortexPE\Commando\PacketHooker;
 use Nicholass003\LittleBrother\Cache\OutboundPacketCache;
 use Nicholass003\LittleBrother\Command\ProtocolCommand;
 use Nicholass003\LittleBrother\Convert\BedrockDataManager;
@@ -105,7 +105,7 @@ class LittleBrother extends PluginBase{
 		);
 
 		$this->schemaRegistry = new SchemaRegistry(new SchemaCompiler());
-		$this->schemaRegistry->loadSchemas(Schemas::getSchemas());
+		$this->schemaRegistry->loadSchemas(Schemas::getSchemas(), true);
 
 		$this->chunkTranslator = new ChunkTranslator(
 			$this->runtimeBlockMapper

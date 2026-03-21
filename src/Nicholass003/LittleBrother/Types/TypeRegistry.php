@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Types;
 
+use Nicholass003\LittleBrother\LittleBrother;
 use Nicholass003\LittleBrother\Schema\PacketContext;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
@@ -67,5 +68,9 @@ final class TypeRegistry{
 
 	public function has(string $type) : bool{
 		return isset($this->types[$type]);
+	}
+
+	public function getPlugin() : LittleBrother{
+		return LittleBrother::getInstance();
 	}
 }

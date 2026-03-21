@@ -38,7 +38,7 @@ final class SchemaTranslator{
 	){}
 
 	public function translateInbound(int $protocol, int $packetId, ByteBufferReader $reader) : string|null|false{
-		$schema = $this->schemas->get($packetId);
+		$schema = $this->schemas->getInbound($packetId);
 
 		if($schema === null){
 			return $reader->getUnreadLength() > 0
@@ -70,7 +70,7 @@ final class SchemaTranslator{
 	}
 
 	public function translateOutbound(int $protocol, int $packetId, ByteBufferReader $reader) : string|null|false{
-		$schema = $this->schemas->get($packetId);
+		$schema = $this->schemas->getOutbound($packetId);
 
 		if($schema === null){
 			Debugger::debug("SCHEMA NOT FOUND FOR PACKET ID : " . $packetId, $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);

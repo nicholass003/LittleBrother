@@ -193,4 +193,8 @@ final class PacketTranslator{
 	public function getSchemaRegistry() : SchemaRegistry{
 		return $this->schema->getSchemaRegistry();
 	}
+
+	public function getPlugin() : LittleBrother{
+		return $this->plugin;
+	}
 }

@@ -157,7 +157,9 @@ class EventListener implements Listener{
 				}
 				Debugger::debug("Translate " . $packet->getName(), $packet instanceof PlayerAuthInputPacket);
 				$target->addToSendBuffer($translated);
+				$this->plugin->getPacketBatchTranslator()->setBypass(true);
 				$this->flushSession($target);
+				$this->plugin->getPacketBatchTranslator()->setBypass(false);
 			}
 
 			if($needsDefaultSend){

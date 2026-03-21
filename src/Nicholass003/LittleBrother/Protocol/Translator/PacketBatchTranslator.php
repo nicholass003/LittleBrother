@@ -42,6 +42,8 @@ use function substr;
 class PacketBatchTranslator{
 	private Compressor $compressor;
 
+	private bool $bypassTranslation = false;
+
 	public function __construct(
 		private PacketTranslator $translator,
 	){
@@ -49,7 +51,7 @@ class PacketBatchTranslator{
 	}
 
 	public function translate(int $protocol, string $payload, bool $inbound = false) : string{
-		if(strlen($payload) <= 1){
+		if(strlen($payload) <= 1 || $this->bypassTranslation){
 			return $payload;
 		}
 
@@ -83,6 +85,10 @@ class PacketBatchTranslator{
 		}
 
 		return chr($compressionId) . $recompressed;
+	}
+
+	public function setBypass(bool $bypass) : void{
+		$this->bypassTranslation = $bypass;
 	}
 
 	private function translateBatch(int $protocol, string $data, bool $inbound) : string{

@@ -596,6 +596,7 @@ class Schemas{
 					0 => [
 						'name' => 'eventId',
 						'type' => 'varint',
+						'storeAs' => 'eventId',
 					],
 					1 => [
 						'name' => 'position',
@@ -603,7 +604,7 @@ class Schemas{
 					],
 					2 => [
 						'name' => 'eventData',
-						'type' => 'varint',
+						'type' => 'event_data_level_event',
 					],
 				],
 			],

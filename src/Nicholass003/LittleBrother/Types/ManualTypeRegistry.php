@@ -37,6 +37,7 @@ use pocketmine\network\mcpe\protocol\types\AbilitiesData;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
 use pocketmine\network\mcpe\protocol\types\command\CommandOriginData;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequestActionType;
+use pocketmine\network\mcpe\protocol\types\LevelEvent;
 use pocketmine\utils\Binary;
 use function array_flip;
 use function array_merge;
@@ -91,6 +92,7 @@ final class ManualTypeRegistry{
 		self::registerCameraAimAssistPresetItemSettings($registry);
 		self::registerPlayerListEntry($registry);
 		self::registerUpdateAbilitiesPacket($registry);
+		self::registerEventDataLevelEvent($registry);
 	}
 
 	private static function registerCacheableNbt(TypeRegistry $registry) : void{
@@ -1647,6 +1649,28 @@ final class ManualTypeRegistry{
 			},
 			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				$v['data']->encode($out);
+			}
+		);
+	}
+
+	private static function registerEventDataLevelEvent(TypeRegistry $registry) : void{
+		$registry->register(
+			'event_data_level_event',
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) use($registry) : array{
+				$eventData = VarInt::readSignedInt($in);
+				$eventId = $context->get('eventId');
+
+				if($eventId === LevelEvent::PARTICLE_DESTROY){
+					$blockMapper = $registry->getPlugin()->getRuntimeBlockMapper();
+					$mapped = $blockMapper->serverToClient($protocol, $eventData);
+
+					return ['eventData' => $mapped];
+				}
+
+				return ['eventData' => $eventData];
+			},
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) use($registry) : void{
+				VarInt::writeSignedInt($out, $v['eventData']);
 			}
 		);
 	}

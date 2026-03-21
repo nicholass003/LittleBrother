@@ -31,7 +31,20 @@ use function is_array;
 
 final class SchemaCompiler{
 
-	public function compile(array $fields) : array{
+	/**
+	 * Direction constants for protocol selection in readers
+	 */
+	public const DIRECTION_INBOUND = 'inbound'; // client → server, reader gets client protocol
+	public const DIRECTION_OUTBOUND = 'outbound'; // server → client, reader gets client protocol
+
+	/**
+	 * Compile schema fields into executable instructions
+	 *
+	 * @param array       $fields    Schema field definitions
+	 * @param string|null $direction One of DIRECTION_* constants, or null for backward compatibility (uses src)
+	 * @return array Array of callable instructions
+	 */
+	public function compile(array $fields, ?string $direction = null) : array{
 		$instructions = [];
 
 		foreach($fields as $field){
@@ -54,7 +67,7 @@ final class SchemaCompiler{
 
 				$countType = $field['countType'];
 
-				$entryInstructions = $this->compile($field['entry'] ?? []);
+				$entryInstructions = $this->compile($field['entry'] ?? [], $direction);
 
 				$entryPipeline = function(
 					ByteBufferReader $in,
@@ -76,7 +89,7 @@ final class SchemaCompiler{
 					int $src,
 					int $dst,
 					PacketContext $context
-				) use ($countType, $entryInstructions, $entryPipeline, $since, $until, $default, $field) : void{
+				) use ($countType, $entryInstructions, $entryPipeline, $since, $until, $default, $field, $direction) : void{
 
 					$existsInSrc = true;
 					$existsInDst = true;
@@ -96,7 +109,8 @@ final class SchemaCompiler{
 					}
 
 					if($existsInSrc){
-						$count = $types->read($in, $countType, $src, $context);
+						$protocolForReader = self::getProtocolForReader($src, $dst, $direction);
+						$count = $types->read($in, $countType, $protocolForReader, $context);
 
 						if(!empty($field['storeCountAs'])){
 							$context->set($field['storeCountAs'], $count);
@@ -146,7 +160,7 @@ final class SchemaCompiler{
 
 				if(is_array($value)){
 
-					$subInstructions = $this->compile([$value]);
+					$subInstructions = $this->compile([$value], $direction);
 
 					$subPipeline = function(
 						ByteBufferReader $in,
@@ -169,9 +183,10 @@ final class SchemaCompiler{
 						int $src,
 						int $dst,
 						PacketContext $context
-					) use ($subPipeline) : void{
+					) use ($subPipeline, $direction) : void{
 
-						$has = $types->read($in, "bool", $src, $context);
+						$protocolForReader = self::getProtocolForReader($src, $dst, $direction);
+						$has = $types->read($in, "bool", $protocolForReader, $context);
 						$types->write($out, "bool", $has, $dst, $context);
 
 						if($has){
@@ -194,13 +209,14 @@ final class SchemaCompiler{
 					int $src,
 					int $dst,
 					PacketContext $context
-				) use ($valueType) : void{
+				) use ($valueType, $direction) : void{
 
-					$has = $types->read($in, "bool", $src, $context);
+					$protocolForReader = self::getProtocolForReader($src, $dst, $direction);
+					$has = $types->read($in, "bool", $protocolForReader, $context);
 					$types->write($out, "bool", $has, $dst, $context);
 
 					if($has){
-						$v = $types->read($in, $valueType, $src, $context);
+						$v = $types->read($in, $valueType, $protocolForReader, $context);
 						$types->write($out, $valueType, $v, $dst, $context);
 					}
 				};
@@ -218,13 +234,43 @@ final class SchemaCompiler{
 			/*
 			 * SCALAR / PRIMITIVE
 			 */
-			$instructions[] = $this->compileScalar($field);
+			$instructions[] = $this->compileScalar($field, $direction);
 		}
 
 		return $instructions;
 	}
 
-	private function compileScalar(array $field) : callable{
+	/**
+	 * Determine which protocol should be passed to the type reader
+	 *
+	 * @param int         $src       Source protocol (where data is coming from)
+	 * @param int         $dst       Destination protocol (where data is going to)
+	 * @param string|null $direction Direction of translation (DIRECTION_INBOUND or DIRECTION_OUTBOUND)
+	 * @return int Protocol to use for reading
+	 */
+	private static function getProtocolForReader(int $src, int $dst, ?string $direction) : int{
+		if($direction === null){
+			return $src;
+		}
+
+		if($direction === self::DIRECTION_OUTBOUND){
+			return $dst;
+		}
+
+		if($direction === self::DIRECTION_INBOUND){
+			return $src;
+		}
+		return $src;
+	}
+
+	/**
+	 * Compile scalar field into instruction
+	 *
+	 * @param array       $field     Field definition
+	 * @param string|null $direction Direction of translation
+	 * @return callable Instruction
+	 */
+	private function compileScalar(array $field, ?string $direction = null) : callable{
 
 		$type = $field['type'];
 		$name = $field['name'] ?? null;
@@ -240,7 +286,7 @@ final class SchemaCompiler{
 			int $src,
 			int $dst,
 			PacketContext $context
-		) use ($type, $since, $until, $default, $storeAs) : void{
+		) use ($type, $since, $until, $default, $storeAs, $direction) : void{
 
 			$existsInSrc = true;
 			$existsInDst = true;
@@ -256,7 +302,8 @@ final class SchemaCompiler{
 			}
 
 			if($existsInSrc){
-				$value = $types->read($in, $type, $src, $context);
+				$protocolForReader = self::getProtocolForReader($src, $dst, $direction);
+				$value = $types->read($in, $type, $protocolForReader, $context);
 				$context->set($storeAs, $value);
 
 				if($existsInDst){
