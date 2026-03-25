@@ -26,6 +26,9 @@ namespace Nicholass003\LittleBrother\Types;
 
 use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
+use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
+use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
+use pocketmine\network\mcpe\protocol\types\entity\IntMetadataProperty;
 
 final class CommonTypesAdapter{
 
@@ -101,7 +104,17 @@ final class CommonTypesAdapter{
 		$registry->register(
 			"entity_metadata",
 			fn($in, $protocol, $context) => CommonTypes::getEntityMetadata($in),
-			fn($out, $v, $protocol, $context) => CommonTypes::putEntityMetadata($out, $v)
+			function($out, $v, $protocol, $context) {
+				if($context->get('actorType') === EntityIds::FALLING_BLOCK){
+					$k = EntityMetadataProperties::VARIANT;
+					if(isset($v[$k])){
+						/** @var IntMetadataProperty $d */
+						$d = $v[$k];
+						$v[$k] = new IntMetadataProperty($context->getTypeRegistry()->getPlugin()->getRuntimeBlockMapper()->serverToClient($protocol, $d->getValue()));
+					}
+				}
+				CommonTypes::putEntityMetadata($out, $v);
+			}
 		);
 
 		// Skin

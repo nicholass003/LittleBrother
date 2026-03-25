@@ -39,6 +39,7 @@ use pocketmine\network\mcpe\protocol\types\command\CommandOriginData;
 use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequestActionType;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
+use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use pocketmine\utils\Binary;
 use function array_flip;
 use function array_merge;
@@ -95,6 +96,7 @@ final class ManualTypeRegistry{
 		self::registerPlayerListEntry($registry);
 		self::registerUpdateAbilitiesPacket($registry);
 		self::registerEventDataLevelEvent($registry);
+		self::registerLevelSoundExtraData($registry);
 	}
 
 	private static function registerCacheableNbt(TypeRegistry $registry) : void{
@@ -149,13 +151,10 @@ final class ManualTypeRegistry{
 		$registry->register(
 			'attribute',
 			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
-				$min = LE::readFloat($in);
-				$max = LE::readFloat($in);
-				$current = LE::readFloat($in);
-				$defaultMin = LE::readFloat($in);
-				$defaultMax = LE::readFloat($in);
-				$default = LE::readFloat($in);
 				$id = CommonTypes::getString($in);
+				$min = LE::readFloat($in);
+				$current = LE::readFloat($in);
+				$max = LE::readFloat($in);
 				$modifiers = [];
 				$modCount = VarInt::readUnsignedInt($in);
 				for($i = 0; $i < $modCount; $i++){
@@ -172,21 +171,15 @@ final class ManualTypeRegistry{
 					'min' => $min,
 					'max' => $max,
 					'current' => $current,
-					'defaultMin' => $defaultMin,
-					'defaultMax' => $defaultMax,
-					'default' => $default,
 					'id' => $id,
 					'modifiers' => $modifiers,
 				];
 			},
 			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
-				LE::writeFloat($out, $v['min']);
-				LE::writeFloat($out, $v['max']);
-				LE::writeFloat($out, $v['current']);
-				LE::writeFloat($out, $v['defaultMin']);
-				LE::writeFloat($out, $v['defaultMax']);
-				LE::writeFloat($out, $v['default']);
 				CommonTypes::putString($out, $v['id']);
+				LE::writeFloat($out, $v['min']);
+				LE::writeFloat($out, $v['current']);
+				LE::writeFloat($out, $v['max']);
 				VarInt::writeUnsignedInt($out, count($v['modifiers']));
 				foreach($v['modifiers'] as $mod){
 					CommonTypes::putString($out, $mod['id']);
@@ -1763,19 +1756,39 @@ final class ManualTypeRegistry{
 			'event_data_level_event',
 			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) use($registry) : array{
 				$eventData = VarInt::readSignedInt($in);
-				$eventId = $context->get('eventId');
-
-				if($eventId === LevelEvent::PARTICLE_DESTROY){
-					$blockMapper = $registry->getPlugin()->getRuntimeBlockMapper();
-					$mapped = $blockMapper->serverToClient($protocol, $eventData);
-
-					return ['eventData' => $mapped];
-				}
-
 				return ['eventData' => $eventData];
 			},
 			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) use($registry) : void{
-				VarInt::writeSignedInt($out, $v['eventData']);
+				$eventId = $context->get('eventId');
+				$eventData = $v['eventData'];
+
+				if($eventId === LevelEvent::PARTICLE_DESTROY || $eventId === LevelEvent::PARTICLE_PUNCH_BLOCK){
+					$blockMapper = $registry->getPlugin()->getRuntimeBlockMapper();
+					$mapped = $blockMapper->serverToClient($protocol, $eventData);
+					$eventData = $mapped;
+				}
+				VarInt::writeSignedInt($out, $eventData);
+			}
+		);
+	}
+
+	private static function registerLevelSoundExtraData(TypeRegistry $registry) : void{
+		$registry->register(
+			'level_sound_extra_data',
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) use($registry) : array{
+				$extraData = VarInt::readSignedInt($in);
+				return ['extraData' => $extraData];
+			},
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) use($registry) : void{
+				$soundId = $context->get('soundId');
+				$extraData = $v['extraData'];
+
+				if($soundId === LevelSoundEvent::PLACE || $soundId === LevelSoundEvent::ITEM_USE_ON){
+					$blockMapper = $registry->getPlugin()->getRuntimeBlockMapper();
+					$mapped = $blockMapper->serverToClient($protocol, $extraData);
+					$extraData = $mapped;
+				}
+				VarInt::writeSignedInt($out, $extraData);
 			}
 		);
 	}

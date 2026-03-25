@@ -377,6 +377,7 @@ class Schemas{
 					2 => [
 						'name' => 'type',
 						'type' => 'string',
+						'storeAs' => 'actorType',
 					],
 					3 => [
 						'name' => 'position',
@@ -2586,6 +2587,7 @@ class Schemas{
 					0 => [
 						'name' => 'sound',
 						'type' => 'uvarint',
+						'storeAs' => 'soundId',
 					],
 					1 => [
 						'name' => 'position',
@@ -2593,7 +2595,7 @@ class Schemas{
 					],
 					2 => [
 						'name' => 'extraData',
-						'type' => 'varint',
+						'type' => 'level_sound_extra_data',
 					],
 					3 => [
 						'name' => 'entityType',
