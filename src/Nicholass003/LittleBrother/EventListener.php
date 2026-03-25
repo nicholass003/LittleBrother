@@ -27,11 +27,9 @@ namespace Nicholass003\LittleBrother;
 use Nicholass003\LittleBrother\Protocol\PacketSender;
 use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
 use Nicholass003\LittleBrother\Utils\Debugger;
-use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerQuitEvent;
-use pocketmine\event\server\DataPacketDecodeEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\NetworkSession;
@@ -177,70 +175,6 @@ class EventListener implements Listener{
 	public function onPlayerQuit(PlayerQuitEvent $event) : void{
 		$session = $event->getPlayer()->getNetworkSession();
 		$this->plugin->getProtocolStorage()->remove($session);
-	}
-
-	public function onDataPacketDecode(DataPacketDecodeEvent $event) : void{
-		$packetId = $event->getPacketId();
-		$session = $event->getOrigin();
-		$storage = $this->plugin->getProtocolStorage();
-		$protocol = $storage->get($session);
-
-		Debugger::debug("Decodeing Packet ID: " . $packetId, $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
-
-		if($protocol === null || $protocol === ProtocolInfo::CURRENT_PROTOCOL) return;
-		if(!in_array($protocol, ProtocolVersion::SUPPORTED_PROTOCOLS, true)) return;
-
-		$translator = $this->plugin->getTranslator();
-
-		if($translator->getManualRegistry()->isBatchOnly($packetId)){
-			return;
-		}
-
-		$hasManual = $translator->getManualRegistry()->get($packetId) !== null;
-		$hasSchema = $translator->getSchemaRegistry()->get($packetId) !== null
-			&& !($translator->getSchemaRegistry()->get($packetId)->manual);
-
-		if(!$hasManual && !$hasSchema) return;
-
-		$originalBuffer = $event->getPacketBuffer();
-
-		$translated = $this->plugin->getTranslator()->translateInbound($protocol, $originalBuffer);
-
-		if($translated === null){
-			return;
-		}
-
-		if($translated === $originalBuffer){
-			return;
-		}
-
-		$event->cancel();
-
-		if(self::$packetPoolProp === null){
-			$ref = new \ReflectionClass(NetworkSession::class);
-			self::$packetPoolProp = $ref->getProperty('packetPool');
-			self::$packetPoolProp->setAccessible(true);
-		}
-		/** @var \pocketmine\network\mcpe\protocol\PacketPool $pool */
-		$pool = self::$packetPoolProp->getValue($session);
-
-		$packet = $pool->getPacket($translated);
-		if($packet === null){
-			return;
-		}
-
-		try{
-			$reader = new ByteBufferReader($translated);
-			$packet->decode($reader);
-		}catch(\pocketmine\network\mcpe\protocol\PacketDecodeException $e){
-			Debugger::debug("Packet decode failed: " . $e->getMessage(), $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
-			return;
-		}
-
-		$handler = $session->getHandler();
-		if($handler !== null){
-			$packet->handle($handler);
-		}
 	}
 
 	private function flushSession(NetworkSession $session) : void{

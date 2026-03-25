@@ -88,8 +88,8 @@ final class StartGamePacketHandler extends ManualPacketHandler{
 
 		CommonTypes::putBool($out, CommonTypes::getBool($in)); // blockNetworkIdsAreHashes
 
-		if($protocol === ProtocolVersion::BE_1_21_120){
-			CommonTypes::putBool($out, false);
+		if($protocol <= ProtocolVersion::BE_1_21_120){
+			CommonTypes::putBool($out, false); // enableTickDeathSystems
 		}
 
 		NetworkPermissions::decode($in)->encode($out);

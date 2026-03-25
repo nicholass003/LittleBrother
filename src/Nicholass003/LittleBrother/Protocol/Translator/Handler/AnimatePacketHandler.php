@@ -39,35 +39,57 @@ class AnimatePacketHandler extends ManualPacketHandler{
 
 	public function translateOutbound(int $protocol, ByteBufferReader $in) : string{
 		$out = new ByteBufferWriter();
-		if($protocol >= ProtocolVersion::BE_1_21_130){
-			$action = Byte::readUnsigned($in);
-			Byte::writeUnsigned($out, $action);
-		}else{
-			$action = VarInt::readSignedInt($in);
+		$action = Byte::readUnsigned($in);
+		$actorRuntimeId = CommonTypes::getActorRuntimeId($in);
+		$floatData = LE::readFloat($in);
+		$optionalStr = CommonTypes::readOptional($in, CommonTypes::getString(...));
+
+		if($protocol <= ProtocolVersion::BE_1_21_110){
 			VarInt::writeSignedInt($out, $action);
-		}
-		CommonTypes::putActorRuntimeId($out, CommonTypes::getActorRuntimeId($in));
-		LE::writeFloat($out, LE::readFloat($in));
-		if($protocol <= ProtocolVersion::BE_1_21_120){
-			if($action === self::ACTION_ROW_LEFT || $action === self::ACTION_ROW_RIGHT){
-				LE::writeFloat($out, LE::readFloat($in));
+			CommonTypes::putActorRuntimeId($out, $actorRuntimeId);
+			if(($action & 0x80) !== 0){
+				LE::writeFloat($out, $floatData);
 			}
+		}elseif($protocol < ProtocolVersion::BE_1_21_130){
+			VarInt::writeSignedInt($out, $action);
+			CommonTypes::putActorRuntimeId($out, $actorRuntimeId);
+			LE::writeFloat($out, $floatData);
+			if($action === self::ACTION_ROW_LEFT || $action === self::ACTION_ROW_RIGHT){
+				LE::writeFloat($out, 0.0);
+			}
+			CommonTypes::writeOptional($out, $optionalStr, CommonTypes::putString(...));
 		}else{
-			CommonTypes::writeOptional($out, CommonTypes::readOptional($in, CommonTypes::getString(...)), CommonTypes::putString(...));
+			Byte::writeUnsigned($out, $action);
+			CommonTypes::putActorRuntimeId($out, $actorRuntimeId);
+			LE::writeFloat($out, $floatData);
+			CommonTypes::writeOptional($out, $optionalStr, CommonTypes::putString(...));
 		}
 		return $out->getData();
 	}
 
 	public function translateInbound(int $protocol, ByteBufferReader $in) : string{
 		$out = new ByteBufferWriter();
-		if($protocol < ProtocolVersion::BE_1_21_130){
+		if($protocol <= ProtocolVersion::BE_1_21_110){
 			$action = VarInt::readSignedInt($in);
+			$actorRuntimeId = CommonTypes::getActorRuntimeId($in);
+			$floatData = 0.0;
+			if(($action & 0x80) !== 0){
+				$floatData = LE::readFloat($in);
+			}
 			Byte::writeUnsigned($out, $action);
-			CommonTypes::putActorRuntimeId($out, CommonTypes::getActorRuntimeId($in));
-			LE::writeFloat($out, LE::readFloat($in));
+			CommonTypes::putActorRuntimeId($out, $actorRuntimeId);
+			LE::writeFloat($out, $floatData);
+			CommonTypes::writeOptional($out, null, CommonTypes::putString(...));
+		}elseif($protocol < ProtocolVersion::BE_1_21_130){
+			$action = VarInt::readSignedInt($in);
+			$actorRuntimeId = CommonTypes::getActorRuntimeId($in);
+			$floatData = LE::readFloat($in);
 			if($action === self::ACTION_ROW_LEFT || $action === self::ACTION_ROW_RIGHT){
 				LE::readFloat($in);
 			}
+			Byte::writeUnsigned($out, $action);
+			CommonTypes::putActorRuntimeId($out, $actorRuntimeId);
+			LE::writeFloat($out, $floatData);
 			CommonTypes::writeOptional($out, null, CommonTypes::putString(...));
 		}else{
 			$action = Byte::readUnsigned($in);

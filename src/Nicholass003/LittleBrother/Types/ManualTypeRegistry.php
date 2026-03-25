@@ -36,6 +36,7 @@ use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\AbilitiesData;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
 use pocketmine\network\mcpe\protocol\types\command\CommandOriginData;
+use pocketmine\network\mcpe\protocol\types\command\CommandPermissions;
 use pocketmine\network\mcpe\protocol\types\inventory\stackrequest\ItemStackRequestActionType;
 use pocketmine\network\mcpe\protocol\types\LevelEvent;
 use pocketmine\utils\Binary;
@@ -67,6 +68,7 @@ final class ManualTypeRegistry{
 		self::registerEntityLink($registry);
 		self::registerAttribute($registry);
 		self::registerGameRules($registry);
+		self::registerCommandRawData($registry);
 		self::registerCommandOriginData($registry);
 		self::registerGetCommandMessage($registry);
 		self::registerEnumValueIndexes($registry);
@@ -266,7 +268,7 @@ final class ManualTypeRegistry{
 					CommonTypes::putString($out, $v['type_str']);
 					CommonTypes::putUUID($out, $v['uuid']);
 					CommonTypes::putString($out, $v['requestId']);
-					LE::writeSignedLong($out, $v['playerActorUniqueId']);
+					LE::writeSignedLong($out, $v['playerActorUniqueId'] ?? 0);
 				}
 			}
 		);
@@ -276,25 +278,49 @@ final class ManualTypeRegistry{
 		$registry->register(
 			'get_command_message',
 			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
-				$success = CommonTypes::getBool($in);
-				$messageId = CommonTypes::getString($in);
-				$params = [];
-				$paramCount = VarInt::readUnsignedInt($in);
-				for($i = 0; $i < $paramCount; $i++){
-					$params[] = CommonTypes::getString($in);
+				if($protocol <= ProtocolVersion::BE_1_21_120){
+					$success = CommonTypes::getBool($in);
+					$messageId = CommonTypes::getString($in);
+					$params = [];
+					$paramCount = VarInt::readUnsignedInt($in);
+					for($i = 0; $i < $paramCount; $i++){
+						$params[] = CommonTypes::getString($in);
+					}
+					return [
+						'success' => $success,
+						'messageId' => $messageId,
+						'params' => $params,
+					];
+				}else{
+					$messageId = CommonTypes::getString($in);
+					$success = CommonTypes::getBool($in);
+					$params = [];
+					$paramCount = VarInt::readUnsignedInt($in);
+					for($i = 0; $i < $paramCount; $i++){
+						$params[] = CommonTypes::getString($in);
+					}
+					return [
+						'success' => $success,
+						'messageId' => $messageId,
+						'params' => $params,
+					];
 				}
-				return [
-					'success' => $success,
-					'messageId' => $messageId,
-					'params' => $params,
-				];
 			},
 			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
-				CommonTypes::putBool($out, $v['success']);
-				CommonTypes::putString($out, $v['messageId']);
-				VarInt::writeUnsignedInt($out, count($v['params']));
-				foreach($v['params'] as $param){
-					CommonTypes::putString($out, $param);
+				if($protocol <= ProtocolVersion::BE_1_21_120){
+					CommonTypes::putBool($out, $v['success']);
+					CommonTypes::putString($out, $v['messageId']);
+					VarInt::writeUnsignedInt($out, count($v['params']));
+					foreach($v['params'] as $param){
+						CommonTypes::putString($out, $param);
+					}
+				}else{
+					CommonTypes::putString($out, $v['messageId']);
+					CommonTypes::putBool($out, $v['success']);
+					VarInt::writeUnsignedInt($out, count($v['params']));
+					foreach($v['params'] as $param){
+						CommonTypes::putString($out, $param);
+					}
 				}
 			}
 		);
@@ -1284,6 +1310,81 @@ final class ManualTypeRegistry{
 		);
 	}
 
+	private static function registerCommandRawData(TypeRegistry $registry) : void{
+		$registry->register(
+			'command_raw_data',
+			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
+				$name = CommonTypes::getString($in);
+				$description = CommonTypes::getString($in);
+				$flags = LE::readUnsignedShort($in);
+
+				if($protocol >= ProtocolVersion::BE_1_21_130){
+					$permission = CommonTypes::getString($in);
+				}else{
+					$permissionInt = Byte::readUnsigned($in);
+					$permission = CommandPermissions::toName($permissionInt);
+				}
+
+				$aliasEnumIndex = LE::readSignedInt($in);
+				$chainedIndices = [];
+				$chainedCount = VarInt::readUnsignedInt($in);
+
+				for($i = 0; $i < $chainedCount; $i++){
+					if($protocol >= ProtocolVersion::BE_1_21_130){
+						$chainedIndices[] = LE::readUnsignedInt($in);
+					}else{
+						$chainedIndices[] = LE::readUnsignedShort($in);
+					}
+				}
+
+				$overloads = [];
+				$overloadCount = VarInt::readUnsignedInt($in);
+
+				for($i = 0; $i < $overloadCount; $i++){
+					$overloads[] = $context->getTypeRegistry()->read($in, 'command_overload_raw_data', $protocol, $context);
+				}
+
+				return [
+					'name' => $name,
+					'description' => $description,
+					'flags' => $flags,
+					'permission' => $permission,
+					'aliasEnumIndex' => $aliasEnumIndex,
+					'chainedSubCommandDataIndexes' => $chainedIndices,
+					'overloads' => $overloads,
+				];
+			},
+			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
+				CommonTypes::putString($out, $v['name']);
+				CommonTypes::putString($out, $v['description']);
+				LE::writeUnsignedShort($out, $v['flags']);
+
+				if($protocol >= ProtocolVersion::BE_1_21_130){
+					CommonTypes::putString($out, $v['permission']);
+				}else{
+					$permissionInt = CommandPermissions::fromName($v['permission']);
+					Byte::writeUnsigned($out, $permissionInt);
+				}
+
+				LE::writeSignedInt($out, $v['aliasEnumIndex']);
+
+				VarInt::writeUnsignedInt($out, count($v['chainedSubCommandDataIndexes']));
+				foreach($v['chainedSubCommandDataIndexes'] as $index){
+					if($protocol >= ProtocolVersion::BE_1_21_130){
+						LE::writeUnsignedInt($out, $index);
+					}else{
+						LE::writeUnsignedShort($out, $index);
+					}
+				}
+
+				VarInt::writeUnsignedInt($out, count($v['overloads']));
+				foreach($v['overloads'] as $overload){
+					$context->getTypeRegistry()->write($out, 'command_overload_raw_data', $overload, $protocol, $context);
+				}
+			}
+		);
+	}
+
 	private static function registerCommandOverload(TypeRegistry $registry) : void{
 		$registry->register(
 			'command_overload_raw_data',
@@ -1356,9 +1457,9 @@ final class ManualTypeRegistry{
 			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 				$size = VarInt::readUnsignedInt($in);
 				$params = [];
-				$enumValuesCount = $context->get('enumValuesCount');
-				for($i = 0; $i < $size; $i++){
-					if($protocol <= ProtocolVersion::BE_1_21_120){
+				if($protocol <= ProtocolVersion::BE_1_21_120){
+					$enumValuesCount = $context->get('enumValuesCount');
+					for($i = 0; $i < $size; $i++){
 						$params[] = [
 							'valueIndexes' => match(true){
 								$enumValuesCount < 256 => Byte::readUnsigned($in),
@@ -1366,7 +1467,9 @@ final class ManualTypeRegistry{
 								default => LE::readUnsignedInt($in)
 							}
 						];
-					}else{
+					}
+				}else{
+					for($i = 0; $i < $size; $i++){
 						$params[] = [
 							'valueIndexes' => LE::readUnsignedInt($in)
 						];
@@ -1377,14 +1480,16 @@ final class ManualTypeRegistry{
 			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 				VarInt::writeUnsignedInt($out, $v['size']);
 				$enumValuesCount = $context->get('enumValuesCount');
-				foreach($v['params'] as $p){
-					if($protocol <= ProtocolVersion::BE_1_21_120){
+				if($protocol <= ProtocolVersion::BE_1_21_120){
+					foreach($v['params'] as $p){
 						match(true){
 							$enumValuesCount < 256 => Byte::writeUnsigned($out, $p['valueIndexes']),
 							$enumValuesCount < 65536 => LE::writeUnsignedShort($out, $p['valueIndexes']),
 							default => LE::writeUnsignedInt($out, $p['valueIndexes'])
 						};
-					}else{
+					}
+				}else{
+					foreach($v['params'] as $p){
 						LE::writeUnsignedInt($out, $p['valueIndexes']);
 					}
 				}

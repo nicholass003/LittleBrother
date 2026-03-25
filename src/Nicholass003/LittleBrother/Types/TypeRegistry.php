@@ -37,8 +37,8 @@ final class TypeRegistry{
 	/**
 	 * Register type.
 	 *
-	 * @param callable(ByteBufferReader $in, int $protocol, ProtocolContext $context): mixed               $reader
-	 * @param callable(ByteBufferWriter $out, mixed $value, int $protocol, ProtocolContext $context): void $writer
+	 * @param callable(ByteBufferReader $in, int $protocol, PacketContext $context): mixed               $reader
+	 * @param callable(ByteBufferWriter $out, mixed $value, int $protocol, PacketContext $context): void $writer
 	 */
 	public function register(string $type, callable $reader, callable $writer) : void{
 		$this->types[$type] = ['reader' => $reader, 'writer' => $writer];

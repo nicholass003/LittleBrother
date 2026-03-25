@@ -58,7 +58,7 @@ class InventoryTransactionPacketHandler extends ManualPacketHandler{
 
 	private function translate(ByteBufferReader $in, int $protocol) : string{
 		$out = new ByteBufferWriter();
-		$context = new PacketContext();
+		$context = new PacketContext($this->typeRegistry);
 
 		// requestId
 		$requestId = CommonTypes::readLegacyItemStackRequestId($in);

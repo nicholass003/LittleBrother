@@ -30,6 +30,7 @@ final class ProtocolVersion{
 		self::BE_1_26_0,
 		self::BE_1_21_130,
 		self::BE_1_21_120,
+		self::BE_1_21_110,
 	];
 
 	public const MINECRAFT_VERSIONS = [
@@ -37,6 +38,7 @@ final class ProtocolVersion{
 		self::BE_1_26_0 => 'v1.26.0',
 		self::BE_1_21_130 => 'v1.21.130',
 		self::BE_1_21_120 => 'v1.21.120',
+		self::BE_1_21_110 => 'v1.21.110',
 	];
 
 	// Protocol version number
@@ -44,4 +46,5 @@ final class ProtocolVersion{
 	public const BE_1_26_0 = 924;
 	public const BE_1_21_130 = 898;
 	public const BE_1_21_120 = 860;
+	public const BE_1_21_110 = 844;
 }

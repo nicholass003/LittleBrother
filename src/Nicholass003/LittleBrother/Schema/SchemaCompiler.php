@@ -27,7 +27,13 @@ namespace Nicholass003\LittleBrother\Schema;
 use Nicholass003\LittleBrother\Types\TypeRegistry;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
+use function array_search;
+use function count;
 use function is_array;
+use function is_bool;
+use function is_float;
+use function is_int;
+use function is_string;
 
 final class SchemaCompiler{
 
@@ -45,14 +51,50 @@ final class SchemaCompiler{
 	 * @return array Array of callable instructions
 	 */
 	public function compile(array $fields, ?string $direction = null) : array{
+		// Group fields by name to detect duplicates
+		$fieldsByName = [];
+		foreach($fields as $index => $field){
+			$name = $field['name'] ?? null;
+			if($name !== null){
+				if(!isset($fieldsByName[$name])){
+					$fieldsByName[$name] = [];
+				}
+				$fieldsByName[$name][] = ['index' => $index, 'field' => $field];
+			}
+		}
+
 		$instructions = [];
 
 		foreach($fields as $field){
 			$type = $field['type'] ?? null;
+			$name = $field['name'] ?? null;
 
 			$since = $field['since'] ?? null;
 			$until = $field['until'] ?? null;
 			$default = $field['default'] ?? null;
+
+			$hasVariants = ($name !== null && isset($fieldsByName[$name]) && count($fieldsByName[$name]) > 1);
+
+			if($hasVariants){
+				$firstOccurrence = $fieldsByName[$name][0];
+				if($firstOccurrence['index'] !== array_search($field, $fields, true)){
+					continue;
+				}
+
+				$variants = [];
+				foreach($fieldsByName[$name] as $variantData){
+					$variantField = $variantData['field'];
+					$variants[] = [
+						'type' => $variantField['type'],
+						'since' => $variantField['since'] ?? null,
+						'until' => $variantField['until'] ?? null,
+						'default' => $variantField['default'] ?? null,
+					];
+				}
+
+				$instructions[] = $this->compileVersionVariant($name, $variants, $direction);
+				continue;
+			}
 
 			/*
 			 * ARRAY
@@ -241,6 +283,98 @@ final class SchemaCompiler{
 	}
 
 	/**
+	 * Compile a field that has multiple version variants (same name, different types)
+	 * This handles cases where schema has multiple fields with same name but different since/until
+	 *
+	 * @param string      $name      Field name
+	 * @param array       $variants  Array of variant definitions with type, since, until, default
+	 * @param string|null $direction Direction of translation
+	 * @return callable Instruction
+	 */
+	private function compileVersionVariant(string $name, array $variants, ?string $direction = null) : callable{
+		return static function(
+			ByteBufferReader $in,
+			ByteBufferWriter $out,
+			TypeRegistry $types,
+			int $src,
+			int $dst,
+			PacketContext $context
+		) use ($name, $variants, $direction) : void{
+
+			$protocolForReader = self::getProtocolForReader($src, $dst, $direction);
+			$writeProtocol = $dst;
+
+			$readVariant = null;
+			foreach($variants as $variant){
+				$since = $variant['since'] ?? null;
+				$until = $variant['until'] ?? null;
+
+				$valid = true;
+				if($since !== null && $protocolForReader < $since){
+					$valid = false;
+				}
+				if($until !== null && $protocolForReader > $until){
+					$valid = false;
+				}
+
+				if($valid){
+					$readVariant = $variant;
+					break;
+				}
+			}
+
+			$writeVariant = null;
+			foreach($variants as $variant){
+				$since = $variant['since'] ?? null;
+				$until = $variant['until'] ?? null;
+
+				$valid = true;
+				if($since !== null && $writeProtocol < $since){
+					$valid = false;
+				}
+				if($until !== null && $writeProtocol > $until){
+					$valid = false;
+				}
+
+				if($valid){
+					$writeVariant = $variant;
+					break;
+				}
+			}
+
+			if($readVariant !== null){
+				$value = $types->read($in, $readVariant['type'], $protocolForReader, $context);
+			}
+
+			if($writeVariant !== null){
+				$default = $writeVariant['default'];
+				$types->write($out, $writeVariant['type'], self::convertType($value, $default), $writeProtocol, $context);
+			}
+		};
+	}
+
+	/**
+	 * @param mixed $value
+	 * @param mixed $default
+	 *
+	 * @return mixed
+	 */
+	private static function convertType(mixed $value, mixed $default) : mixed{
+		if(is_string($default)){
+			return (string) $value;
+		}elseif(is_float($default)){
+			return (float) $value;
+		}elseif((is_int($default))){
+			return (int) $value;
+		}elseif(is_bool($default)){
+			return (bool) $value;
+		}elseif(is_array($default)){
+			return (array) $value;
+		}
+		return $value;
+	}
+
+	/**
 	 * Determine which protocol should be passed to the type reader
 	 *
 	 * @param int         $src       Source protocol (where data is coming from)
@@ -249,17 +383,6 @@ final class SchemaCompiler{
 	 * @return int Protocol to use for reading
 	 */
 	private static function getProtocolForReader(int $src, int $dst, ?string $direction) : int{
-		if($direction === null){
-			return $src;
-		}
-
-		if($direction === self::DIRECTION_OUTBOUND){
-			return $dst;
-		}
-
-		if($direction === self::DIRECTION_INBOUND){
-			return $src;
-		}
 		return $src;
 	}
 

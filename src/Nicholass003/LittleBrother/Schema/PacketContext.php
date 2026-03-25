@@ -24,7 +24,14 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Schema;
 
+use Nicholass003\LittleBrother\Types\TypeRegistry;
+
 final class PacketContext{
+
+	public function __construct(
+		private readonly TypeRegistry $registry
+	){}
+
 	private array $storage = [];
 
 	public function set(string $key, mixed $value) : void{
@@ -37,5 +44,9 @@ final class PacketContext{
 
 	public function clear() : void{
 		$this->storage = [];
+	}
+
+	public function getTypeRegistry() : TypeRegistry{
+		return $this->registry;
 	}
 }

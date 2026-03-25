@@ -60,7 +60,7 @@ final class SchemaTranslator{
 
 		$src = $protocol;
 		$dst = ProtocolInfo::CURRENT_PROTOCOL;
-		$context = new PacketContext();
+		$context = new PacketContext($types);
 
 		foreach($schema->instructions as $op){
 			$op($reader, $writer, $types, $src, $dst, $context);
@@ -94,7 +94,7 @@ final class SchemaTranslator{
 
 		$src = ProtocolInfo::CURRENT_PROTOCOL;
 		$dst = $protocol;
-		$context = new PacketContext();
+		$context = new PacketContext($types);
 
 		foreach($schema->instructions as $op){
 			$op($reader, $writer, $types, $src, $dst, $context);
