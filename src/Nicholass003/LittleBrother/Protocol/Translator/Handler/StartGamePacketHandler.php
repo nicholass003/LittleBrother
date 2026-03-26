@@ -26,6 +26,7 @@ namespace Nicholass003\LittleBrother\Protocol\Translator\Handler;
 
 use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
 use Nicholass003\LittleBrother\Protocol\Translator\ManualPacketHandler;
+use Nicholass003\LittleBrother\Schema\PacketContext;
 use pmmp\encoding\Byte;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
@@ -49,6 +50,7 @@ final class StartGamePacketHandler extends ManualPacketHandler{
 
 	public function translateOutbound(int $protocol, ByteBufferReader $in) : string{
 		$out = new ByteBufferWriter();
+		$context = new PacketContext($this->plugin->getTypeRegistryFactory()->getTypeRegistry());
 
 		CommonTypes::putActorUniqueId($out, CommonTypes::getActorUniqueId($in));
 		CommonTypes::putActorRuntimeId($out, CommonTypes::getActorRuntimeId($in));
@@ -58,7 +60,7 @@ final class StartGamePacketHandler extends ManualPacketHandler{
 		LE::writeFloat($out, LE::readFloat($in)); // pitch
 		LE::writeFloat($out, LE::readFloat($in)); // yaw
 
-		$this->translateLevelSettings($in, $out, $protocol);
+		$this->translateLevelSettings($in, $out, $protocol, $context);
 
 		CommonTypes::putString($out, CommonTypes::getString($in)); // levelId
 		CommonTypes::putString($out, CommonTypes::getString($in)); // worldName
@@ -113,20 +115,15 @@ final class StartGamePacketHandler extends ManualPacketHandler{
 		return $out->getData();
 	}
 
-	private function translateLevelSettings(ByteBufferReader $in, ByteBufferWriter $out, int $protocol) : void{
+	private function translateLevelSettings(ByteBufferReader $in, ByteBufferWriter $out, int $protocol, PacketContext $context) : void{
 		LE::writeUnsignedLong($out, LE::readUnsignedLong($in));          // seed
 		SpawnSettings::read($in)->write($out);
 		VarInt::writeSignedInt($out, VarInt::readSignedInt($in));        // generator
 		VarInt::writeSignedInt($out, VarInt::readSignedInt($in));        // worldGamemode
 		CommonTypes::putBool($out, CommonTypes::getBool($in));           // hardcore
 		VarInt::writeSignedInt($out, VarInt::readSignedInt($in));        // difficulty
-		if($protocol >= ProtocolVersion::BE_1_26_10){
-			$pos = CommonTypes::getSignedBlockPosition($in);
-			CommonTypes::putBlockPosition($out, $pos);
-		}else{
-			$pos = CommonTypes::getBlockPosition($in);
-			CommonTypes::putBlockPosition($out, $pos);
-		}
+		$pos = $context->getTypeRegistry()->read($in, 'blockpos', $protocol, $context);
+		$context->getTypeRegistry()->write($out, 'blockpos', $pos, $protocol, $context);
 		CommonTypes::putBool($out, CommonTypes::getBool($in));           // hasAchievementsDisabled
 		VarInt::writeSignedInt($out, VarInt::readSignedInt($in));        // editorWorldType
 		CommonTypes::putBool($out, CommonTypes::getBool($in));           // createdInEditorMode

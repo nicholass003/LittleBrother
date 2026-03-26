@@ -11,7 +11,7 @@ namespace Shared\Nicholass003\LittleBrother;
  *   860 → 53.2.0+bedrock-1.21.124
  *   898 → 54.0.0+bedrock-1.21.130
  *   924 → 55.0.0+bedrock-1.26.0
- *   944 → 55.0.0+bedrock-1.26.0
+ *   944 → 56.0.0+bedrock-1.26.10
  *
  * ROOT-LEVEL keys per packet:
  *   since=X    → new packet, absent in protocols < X. SchemaTranslator drops outbound.
@@ -814,12 +814,20 @@ class Schemas{
 					0 => [
 						'name' => 'blockPosition',
 						'type' => 'signed_blockpos',
+						'until' => 924,
+						'default' => 0,
 					],
 					1 => [
+						'name' => 'blockPosition',
+						'type' => 'blockpos',
+						'since' => 944,
+						'default' => 0,
+					],
+					2 => [
 						'name' => 'addUserData',
 						'type' => 'bool',
 					],
-					2 => [
+					3 => [
 						'name' => 'hotbarSlot',
 						'type' => 'u8',
 					],
@@ -1303,8 +1311,16 @@ class Schemas{
 					4 => [
 						'name' => 'origin',
 						'type' => 'signed_blockpos',
+						'until' => 924,
+						'default' => 0,
 					],
 					5 => [
+						'name' => 'origin',
+						'type' => 'blockpos',
+						'since' => 944,
+						'default' => 0,
+					],
+					6 => [
 						'name' => 'parentMapIds',
 						'type' => 'array',
 						'countType' => 'uvarint',
@@ -1315,11 +1331,11 @@ class Schemas{
 							],
 						],
 					],
-					6 => [
+					7 => [
 						'name' => 'scale',
 						'type' => 'u8',
 					],
-					7 => [
+					8 => [
 						'name' => 'trackedEntities',
 						'type' => 'array',
 						'countType' => 'uvarint',
@@ -1331,7 +1347,7 @@ class Schemas{
 							],
 						],
 					],
-					8 => [
+					9 => [
 						'name' => 'decorations',
 						'type' => 'array',
 						'countType' => 'uvarint',
@@ -1343,15 +1359,15 @@ class Schemas{
 							],
 						],
 					],
-					9 => [
+					10 => [
 						'name' => 'xOffset',
 						'type' => 'varint',
 					],
-					10 => [
+					11 => [
 						'name' => 'yOffset',
 						'type' => 'varint',
 					],
-					11 => [
+					12 => [
 						'name' => 'colors',
 						'type' => 'map_image',
 					],
@@ -2349,8 +2365,16 @@ class Schemas{
 					1 => [
 						'name' => 'blockPosition',
 						'type' => 'signed_blockpos',
+						'until' => 924,
+						'default' => 0,
 					],
 					2 => [
+						'name' => 'blockPosition',
+						'type' => 'blockpos',
+						'since' => 944,
+						'default' => 0,
+					],
+					3 => [
 						'name' => 'reactionType',
 						'type' => 'u8',
 					],
@@ -2478,12 +2502,20 @@ class Schemas{
 					0 => [
 						'name' => 'blockPosition',
 						'type' => 'signed_blockpos',
+						'until' => 924,
+						'default' => 0,
 					],
 					1 => [
+						'name' => 'blockPosition',
+						'type' => 'blockpos',
+						'since' => 944,
+						'default' => 0,
+					],
+					2 => [
 						'name' => 'radius',
 						'type' => 'uvarint',
 					],
-					2 => [
+					3 => [
 						'name' => 'savedChunks',
 						'type' => 'array',
 						'countType' => 'le:u32',
@@ -3840,12 +3872,20 @@ class Schemas{
 					4 => [
 						'name' => 'testPosition',
 						'type' => 'signed_blockpos',
+						'until' => 924,
+						'default' => 0,
 					],
 					5 => [
+						'name' => 'testPosition',
+						'type' => 'blockpos',
+						'since' => 944,
+						'default' => 0,
+					],
+					6 => [
 						'name' => 'testsPerRow',
 						'type' => 'varint',
 					],
-					6 => [
+					7 => [
 						'name' => 'testName',
 						'type' => 'string',
 					],
@@ -3874,16 +3914,8 @@ class Schemas{
 					0 => [
 						'name' => 'flags',
 						'type' => 'uvarint',
-						'until' => 924,
-						'default' => 0,
 					],
 					1 => [
-						'name' => 'input_lock_componentdata',
-						'type' => 'uvarint',
-						'since' => 944,
-						'default' => 0,
-					],
-					2 => [
 						'name' => 'position',
 						'type' => 'vector3',
 						'until' => 924,
@@ -4813,21 +4845,37 @@ class Schemas{
 						'name' => 'unknownFloat',
 						'type' => 'le:f32',
 						'since' => 924,
+						'until' => 924,
 						'default' => 0.0,
 					],
 					3 => [
+						'name' => 'unknownFloat',
+						'type' => 'optional',
+						'value' => 'le:f32',
+						'since' => 944,
+						'default' => 0,
+					],
+					4 => [
 						'name' => 'parameterType',
 						'type' => 'u8',
 						'since' => 860,
 						'default' => 0,
 					],
-					4 => [
+					5 => [
 						'name' => 'unknownVector3',
 						'type' => 'vector3',
 						'since' => 924,
+						'until' => 924,
 						'default' => 0,
 					],
-					5 => [
+					6 => [
+						'name' => 'unknownVector3',
+						'type' => 'optional',
+						'value' => 'vector3',
+						'since' => 944,
+						'default' => 0,
+					],
+					7 => [
 						'name' => 'reset',
 						'type' => 'bool',
 						'since' => 860,
@@ -4874,6 +4922,32 @@ class Schemas{
 						'type' => 'string',
 						'since' => 924,
 						'default' => '',
+					],
+					1 => [
+						'name' => 'formId',
+						'type' => 'le:u32',
+						'since' => 944,
+						'default' => 0,
+					],
+					2 => [
+						'name' => 'dataInstanceId',
+						'type' => 'optional',
+						'value' => 'le:u32',
+						'since' => 944,
+						'default' => 0,
+					],
+				],
+			],
+			334 => [
+				'packet' => 'ClientboundDataDrivenUICloseScreenPacket',
+				'since' => 944,
+				'fields' => [
+					0 => [
+						'name' => 'formId',
+						'type' => 'optional',
+						'value' => 'le:u32',
+						'since' => 944,
+						'default' => 0,
 					],
 				],
 			],
@@ -4959,17 +5033,9 @@ class Schemas{
 										'type' => 'serializable_voxel_cells',
 										'since' => 924,
 										'default' => 0,
-										'until' => 924,
 									],
 								],
 								'since' => 924,
-								'default' => 0,
-								'until' => 924,
-							],
-							[
-								'name' => 'value',
-								'type' => 'serializable_voxel_shape',
-								'since' => 944,
 								'default' => 0,
 							],
 							[
@@ -4982,12 +5048,10 @@ class Schemas{
 										'type' => 'le:f32',
 										'since' => 924,
 										'default' => 0,
-										'until' => 924,
 									],
 								],
 								'since' => 924,
 								'default' => 0,
-								'until' => 924,
 							],
 							[
 								'name' => 'yCoordinates',
@@ -4999,12 +5063,10 @@ class Schemas{
 										'type' => 'le:f32',
 										'since' => 924,
 										'default' => 0,
-										'until' => 924,
 									],
 								],
 								'since' => 924,
 								'default' => 0,
-								'until' => 924,
 							],
 							[
 								'name' => 'zCoordinates',
@@ -5016,12 +5078,10 @@ class Schemas{
 										'type' => 'le:f32',
 										'since' => 924,
 										'default' => 0,
-										'until' => 924,
 									],
 								],
 								'since' => 924,
 								'default' => 0,
-								'until' => 924,
 							],
 						],
 						'since' => 924,
@@ -5038,21 +5098,13 @@ class Schemas{
 								'value' => 'id',
 								'since' => 924,
 								'default' => 0,
-								'until' => 924,
 							],
 						],
 						'since' => 924,
-						'until' => 924,
 						'default' => 0,
 					],
 					2 => [
-						'name' => 'name_map',
-						'type' => 'unknown',
-						'since' => 944,
-						'default' => 0,
-					],
-					3 => [
-						'name' => 'custom_shape_count',
+						'name' => 'customShapeCount',
 						'type' => 'le:u16',
 						'since' => 944,
 						'default' => 0,
@@ -5121,6 +5173,180 @@ class Schemas{
 							],
 						],
 						'since' => 924,
+						'default' => 0,
+					],
+				],
+			],
+			341 => [
+				'packet' => 'LocatorBarPacket',
+				'since' => 944,
+				'fields' => [
+					0 => [
+						'name' => 'waypoints',
+						'type' => 'array',
+						'countType' => 'uvarint',
+						'entry' => [
+							[
+								'name' => 'group',
+								'type' => 'uuid',
+								'since' => 944,
+								'default' => 0,
+							],
+							[
+								'name' => 'waypoint',
+								'type' => 'locator_bar_waypoint',
+								'since' => 944,
+								'default' => 0,
+							],
+							[
+								'name' => 'action',
+								'type' => 'u8',
+								'since' => 944,
+								'default' => 0,
+							],
+						],
+						'since' => 944,
+						'default' => 0,
+					],
+				],
+			],
+			342 => [
+				'packet' => 'PartyChangedPacket',
+				'since' => 944,
+				'fields' => [
+					0 => [
+						'name' => 'partyId',
+						'type' => 'string',
+						'since' => 944,
+						'default' => '',
+					],
+				],
+			],
+			343 => [
+				'packet' => 'ServerboundDataDrivenScreenClosedPacket',
+				'since' => 944,
+				'fields' => [
+					0 => [
+						'name' => 'formId',
+						'type' => 'le:u32',
+						'since' => 944,
+						'default' => 0,
+					],
+					1 => [
+						'name' => 'closeReason',
+						'type' => 'string',
+						'since' => 944,
+						'default' => '',
+					],
+				],
+			],
+			344 => [
+				'packet' => 'SyncWorldClocksPacket',
+				'since' => 944,
+				'fields' => [
+					0 => [
+						'name' => 'clockData',
+						'type' => 'array',
+						'countType' => 'uvarint',
+						'entry' => [
+							[
+								'name' => 'value',
+								'type' => 'sync_world_clock_state_data',
+								'since' => 944,
+								'default' => 0,
+							],
+						],
+						'since' => 944,
+						'default' => 0,
+					],
+					1 => [
+						'name' => 'clockId',
+						'type' => 'uvarlong',
+						'since' => 944,
+						'default' => 0,
+					],
+					2 => [
+						'name' => 'markers',
+						'type' => 'array',
+						'countType' => 'uvarint',
+						'entry' => [
+							[
+								'name' => 'value',
+								'type' => 'sync_world_clock_marker_data',
+								'since' => 944,
+								'default' => 0,
+							],
+						],
+						'since' => 944,
+						'default' => 0,
+					],
+					3 => [
+						'name' => 'markerIds',
+						'type' => 'array',
+						'countType' => 'uvarint',
+						'entry' => [
+							[
+								'name' => 'value',
+								'type' => 'uvarlong',
+								'since' => 944,
+								'default' => 0,
+							],
+						],
+						'since' => 944,
+						'default' => 0,
+					],
+				],
+			],
+			345 => [
+				'packet' => 'ClientboundAttributeLayerSyncPacket',
+				'since' => 944,
+				'fields' => [
+					0 => [
+						'name' => 'layers',
+						'type' => 'array',
+						'countType' => 'uvarint',
+						'entry' => [
+							[
+								'name' => 'value',
+								'type' => 'attribute_layer',
+								'since' => 944,
+								'default' => 0,
+							],
+						],
+						'since' => 944,
+						'default' => 0,
+					],
+					1 => [
+						'name' => 'name',
+						'type' => 'string',
+						'since' => 944,
+						'default' => '',
+					],
+					2 => [
+						'name' => 'dimension',
+						'type' => 'uvarint',
+						'since' => 944,
+						'default' => 0,
+					],
+					3 => [
+						'name' => 'settings',
+						'type' => 'attribute_layer_settings',
+						'since' => 944,
+						'default' => 0,
+					],
+					4 => [
+						'name' => 'attributes',
+						'type' => 'array',
+						'countType' => 'uvarint',
+						'entry' => [
+							[
+								'name' => 'value',
+								'type' => 'attribute_environment',
+								'since' => 944,
+								'default' => 0,
+							],
+						],
+						'since' => 944,
 						'default' => 0,
 					],
 				],

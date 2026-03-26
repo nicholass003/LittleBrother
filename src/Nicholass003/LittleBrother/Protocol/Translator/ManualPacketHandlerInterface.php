@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator;
 
+use Nicholass003\LittleBrother\LittleBrother;
 use pmmp\encoding\ByteBufferReader;
 
 interface ManualPacketHandlerInterface{

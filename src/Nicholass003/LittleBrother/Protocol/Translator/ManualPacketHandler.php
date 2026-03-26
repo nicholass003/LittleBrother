@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator;
 
+use Nicholass003\LittleBrother\LittleBrother;
 use pmmp\encoding\ByteBufferReader;
 
 
@@ -34,6 +35,9 @@ use pmmp\encoding\ByteBufferReader;
 
 
 abstract class ManualPacketHandler implements ManualPacketHandlerInterface{
+	public function __construct(
+		protected LittleBrother $plugin
+	){}
 
 	protected function passthrough(ByteBufferReader $in) : string{
 		return $in->getUnreadLength() > 0

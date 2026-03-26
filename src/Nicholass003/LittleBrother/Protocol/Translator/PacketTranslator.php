@@ -72,15 +72,15 @@ final class PacketTranslator{
 
 	private function registerHandlers() : void{
 		$registry = $this->manual;
-		$registry->register(ProtocolInfo::CRAFTING_DATA_PACKET, new CraftingDataPacketHandler());
-		$registry->register(ProtocolInfo::PLAYER_LIST_PACKET, new PlayerListPacketHandler());
-		$registry->register(ProtocolInfo::START_GAME_PACKET, new StartGamePacketHandler());
-		$registry->register(ProtocolInfo::TEXT_PACKET, new TextPacketHandler());
-		$registry->register(ProtocolInfo::PLAYER_AUTH_INPUT_PACKET, new PlayerAuthInputPacketHandler());
-		$registry->register(ProtocolInfo::MOVE_PLAYER_PACKET, new MovePlayerPacketHandler());
-		$registry->register(ProtocolInfo::ITEM_STACK_RESPONSE_PACKET, new ItemStackResponsePacketHandler());
-		$registry->register(ProtocolInfo::INTERACT_PACKET, new InteractPacketHandler());
-		$registry->register(ProtocolInfo::ANIMATE_PACKET, new AnimatePacketHandler());
+		$registry->register(ProtocolInfo::CRAFTING_DATA_PACKET, new CraftingDataPacketHandler($this->plugin));
+		$registry->register(ProtocolInfo::PLAYER_LIST_PACKET, new PlayerListPacketHandler($this->plugin));
+		$registry->register(ProtocolInfo::START_GAME_PACKET, new StartGamePacketHandler($this->plugin));
+		$registry->register(ProtocolInfo::TEXT_PACKET, new TextPacketHandler($this->plugin));
+		$registry->register(ProtocolInfo::PLAYER_AUTH_INPUT_PACKET, new PlayerAuthInputPacketHandler($this->plugin));
+		$registry->register(ProtocolInfo::MOVE_PLAYER_PACKET, new MovePlayerPacketHandler($this->plugin));
+		$registry->register(ProtocolInfo::ITEM_STACK_RESPONSE_PACKET, new ItemStackResponsePacketHandler($this->plugin));
+		$registry->register(ProtocolInfo::INTERACT_PACKET, new InteractPacketHandler($this->plugin));
+		$registry->register(ProtocolInfo::ANIMATE_PACKET, new AnimatePacketHandler($this->plugin));
 		$registry->register(ProtocolInfo::INVENTORY_TRANSACTION_PACKET, new InventoryTransactionPacketHandler($this->plugin->getTypeRegistryFactory()->getTypeRegistry()), batchOnly: true);
 	}
 

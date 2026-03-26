@@ -329,16 +329,10 @@ final class ManualTypeRegistry{
 					'ignoreBlocks' => CommonTypes::getBool($in),
 					'allowNonTickingChunks' => CommonTypes::getBool($in),
 					'dimensions' => function($in, $protocol, $context){
-						if($protocol >= ProtocolVersion::BE_1_26_10){
-							return CommonTypes::getSignedBlockPosition($in);
-						}
-						return CommonTypes::getBlockPosition($in);
+						return $context->getTypeRegistry()->read($in, 'blockpos', $protocol, $context);
 					},
 					'offset' => function($in, $protocol, $context){
-						if($protocol >= ProtocolVersion::BE_1_26_10){
-							return CommonTypes::getSignedBlockPosition($in);
-						}
-						return CommonTypes::getBlockPosition($in);
+						return $context->getTypeRegistry()->read($in, 'blockpos', $protocol, $context);
 					},
 					'lastTouchedByPlayerID' => CommonTypes::getActorUniqueId($in),
 					'rotation' => Byte::readUnsigned($in),
@@ -355,16 +349,8 @@ final class ManualTypeRegistry{
 				CommonTypes::putBool($out, $v['ignoreEntities']);
 				CommonTypes::putBool($out, $v['ignoreBlocks']);
 				CommonTypes::putBool($out, $v['allowNonTickingChunks']);
-				if($protocol >= ProtocolVersion::BE_1_26_10){
-					CommonTypes::putSignedBlockPosition($out, $v['dimensions']);
-				}else{
-					CommonTypes::putBlockPosition($out, $v['dimensions']);
-				}
-				if($protocol >= ProtocolVersion::BE_1_26_10){
-					CommonTypes::putSignedBlockPosition($out, $v['offset']);
-				}else{
-					CommonTypes::putBlockPosition($out, $v['offset']);
-				}
+				$context->getTypeRegistry()->write($out, 'blockpos', $v['dimensions'], $protocol, $context);
+				$context->getTypeRegistry()->write($out, 'blockpos', $v['offset'], $protocol, $context);
 				CommonTypes::putActorUniqueId($out, $v['lastTouchedByPlayerID']);
 				Byte::writeUnsigned($out, $v['rotation']);
 				Byte::writeUnsigned($out, $v['mirror']);
@@ -388,7 +374,7 @@ final class ManualTypeRegistry{
 					'includePlayers' => CommonTypes::getBool($in),
 					'showBoundingBox' => CommonTypes::getBool($in),
 					'structureBlockType' => VarInt::readSignedInt($in),
-					'structureSettings' => self::readStructureSettingsInline($in, $protocol),
+					'structureSettings' => self::readStructureSettingsInline($in, $protocol, $context),
 					'structureRedstoneSaveMode' => VarInt::readSignedInt($in),
 				];
 			},
@@ -399,29 +385,23 @@ final class ManualTypeRegistry{
 				CommonTypes::putBool($out, $v['includePlayers']);
 				CommonTypes::putBool($out, $v['showBoundingBox']);
 				VarInt::writeSignedInt($out, $v['structureBlockType']);
-				self::writeStructureSettingsInline($out, $v['structureSettings'], $protocol);
+				self::writeStructureSettingsInline($out, $v['structureSettings'], $protocol, $context);
 				VarInt::writeSignedInt($out, $v['structureRedstoneSaveMode']);
 			}
 		);
 	}
 
-	private static function readStructureSettingsInline(ByteBufferReader $in, int $protocol) : array{
+	private static function readStructureSettingsInline(ByteBufferReader $in, int $protocol, PacketContext $context) : array{
 		return [
 			'paletteName' => CommonTypes::getString($in),
 			'ignoreEntities' => CommonTypes::getBool($in),
 			'ignoreBlocks' => CommonTypes::getBool($in),
 			'allowNonTickingChunks' => CommonTypes::getBool($in),
 			'dimensions' => function($in, $protocol, $context){
-						if($protocol >= ProtocolVersion::BE_1_26_10){
-							return CommonTypes::getSignedBlockPosition($in);
-						}
-						return CommonTypes::getBlockPosition($in);
+						return $context->getTypeRegistry()->read($in, 'blockpos', $protocol, $context);
 					},
 			'offset' => function($in, $protocol, $context){
-						if($protocol >= ProtocolVersion::BE_1_26_10){
-							return CommonTypes::getSignedBlockPosition($in);
-						}
-						return CommonTypes::getBlockPosition($in);
+						return $context->getTypeRegistry()->read($in, 'blockpos', $protocol, $context);
 					},
 			'lastTouchedByPlayerID' => CommonTypes::getActorUniqueId($in),
 			'rotation' => Byte::readUnsigned($in),
@@ -434,21 +414,13 @@ final class ManualTypeRegistry{
 		];
 	}
 
-	private static function writeStructureSettingsInline(ByteBufferWriter $out, array $v, int $protocol) : void{
+	private static function writeStructureSettingsInline(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) : void{
 		CommonTypes::putString($out, $v['paletteName']);
 		CommonTypes::putBool($out, $v['ignoreEntities']);
 		CommonTypes::putBool($out, $v['ignoreBlocks']);
 		CommonTypes::putBool($out, $v['allowNonTickingChunks']);
-		if($protocol >= ProtocolVersion::BE_1_26_10){
-			CommonTypes::putSignedBlockPosition($out, $v['dimensions']);
-		}else{
-			CommonTypes::putBlockPosition($out, $v['dimensions']);
-		}
-		if($protocol >= ProtocolVersion::BE_1_26_10){
-			CommonTypes::putSignedBlockPosition($out, $v['offset']);
-		}else{
-			CommonTypes::putBlockPosition($out, $v['offset']);
-		}
+		$context->getTypeRegistry()->write($out, 'blockpos', $v['dimensions'], $protocol, $context);
+		$context->getTypeRegistry()->write($out, 'blockpos', $v['offset'], $protocol, $context);
 		CommonTypes::putActorUniqueId($out, $v['lastTouchedByPlayerID']);
 		Byte::writeUnsigned($out, $v['rotation']);
 		Byte::writeUnsigned($out, $v['mirror']);
@@ -685,10 +657,7 @@ final class ManualTypeRegistry{
 					'actionType' => VarInt::readUnsignedInt($in),
 					'triggerType' => VarInt::readUnsignedInt($in),
 					'blockPosition' => function($in, $protocol, $context){
-						if($protocol >= ProtocolVersion::BE_1_26_10){
-							return CommonTypes::getSignedBlockPosition($in);
-						}
-						return CommonTypes::getBlockPosition($in);
+						return $context->getTypeRegistry()->read($in, 'blockpos', $protocol, $context);
 					},
 					'face' => VarInt::readSignedInt($in),
 					'hotbarSlot' => VarInt::readSignedInt($in),
@@ -703,11 +672,7 @@ final class ManualTypeRegistry{
 				self::writeNetworkInventoryActions($out, $v['actions'], $protocol, $context);
 				VarInt::writeUnsignedInt($out, $v['actionType']);
 				VarInt::writeUnsignedInt($out, $v['triggerType']);
-				if($protocol >= ProtocolVersion::BE_1_26_10){
-					CommonTypes::putSignedBlockPosition($out, $v['blockPosition']);
-				}else{
-					CommonTypes::putBlockPosition($out, $v['blockPosition']);
-				}
+				$context->getTypeRegistry()->write($out, 'blockpos', $v['blockPosition'], $protocol, $context);
 				VarInt::writeSignedInt($out, $v['face']);
 				VarInt::writeSignedInt($out, $v['hotbarSlot']);
 				CommonTypes::putItemStackWrapper($out, $v['itemInHand']);

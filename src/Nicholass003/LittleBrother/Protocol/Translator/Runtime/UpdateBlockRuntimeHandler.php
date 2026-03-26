@@ -25,13 +25,13 @@ declare(strict_types=1);
 namespace Nicholass003\LittleBrother\Protocol\Translator\Runtime;
 
 use Nicholass003\LittleBrother\Convert\Block\RuntimeBlockMapper;
-use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
+use Nicholass003\LittleBrother\LittleBrother;
 use Nicholass003\LittleBrother\Protocol\Translator\RuntimePacketHandler;
+use Nicholass003\LittleBrother\Schema\PacketContext;
 use Nicholass003\LittleBrother\Utils\Debugger;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
-use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use function count;
 
 class UpdateBlockRuntimeHandler implements RuntimePacketHandler{
@@ -46,14 +46,10 @@ class UpdateBlockRuntimeHandler implements RuntimePacketHandler{
 	public function translateOutbound(int $protocol, string $payload) : string{
 		$in = new ByteBufferReader($payload);
 		$out = new ByteBufferWriter();
+		$context = new PacketContext(LittleBrother::getInstance()->getTypeRegistryFactory()->getTypeRegistry());
 
-		if($protocol >= ProtocolVersion::BE_1_26_10){
-			$pos = CommonTypes::getSignedBlockPosition($in);
-			CommonTypes::putBlockPosition($out, $pos);
-		}else{
-			$pos = CommonTypes::getBlockPosition($in);
-			CommonTypes::putBlockPosition($out, $pos);
-		}
+		$pos = $context->getTypeRegistry()->read($in, 'blockpos', $protocol, $context);
+		$context->getTypeRegistry()->write($out, 'blockpos', $pos, $protocol, $context);
 
 		$runtimeId = VarInt::readUnsignedInt($in);
 
@@ -73,14 +69,10 @@ class UpdateBlockRuntimeHandler implements RuntimePacketHandler{
 	public function translateInbound(int $protocol, string $payload) : string{
 		$in = new ByteBufferReader($payload);
 		$out = new ByteBufferWriter();
+		$context = new PacketContext(LittleBrother::getInstance()->getTypeRegistryFactory()->getTypeRegistry());
 
-		if($protocol >= ProtocolVersion::BE_1_26_10){
-			$pos = CommonTypes::getSignedBlockPosition($in);
-			CommonTypes::putBlockPosition($out, $pos);
-		}else{
-			$pos = CommonTypes::getBlockPosition($in);
-			CommonTypes::putBlockPosition($out, $pos);
-		}
+		$pos = $context->getTypeRegistry()->read($in, 'blockpos', $protocol, $context);
+		$context->getTypeRegistry()->write($out, 'blockpos', $pos, $protocol, $context);
 
 		$runtimeId = VarInt::readUnsignedInt($in);
 

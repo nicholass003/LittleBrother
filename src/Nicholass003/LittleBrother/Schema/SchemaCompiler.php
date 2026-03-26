@@ -33,6 +33,7 @@ use function is_array;
 use function is_bool;
 use function is_float;
 use function is_int;
+use function is_object;
 use function is_string;
 
 final class SchemaCompiler{
@@ -360,7 +361,9 @@ final class SchemaCompiler{
 	 * @return mixed
 	 */
 	private static function convertType(mixed $value, mixed $default) : mixed{
-		if(is_string($default)){
+		if(is_object($value)){
+			return $value;
+		}elseif(is_string($default)){
 			return (string) $value;
 		}elseif(is_float($default)){
 			return (float) $value;

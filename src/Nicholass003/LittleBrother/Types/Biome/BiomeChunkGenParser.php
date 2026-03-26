@@ -269,6 +269,7 @@ final class BiomeChunkGenParser{
 
 		CommonTypes::putBool($out, $v['useInternal']);
 	}
+
 	private static function readScatterParam(ByteBufferReader $in) : array{
 		Debugger::debug("readScatterParam offset element=" . $in->getOffset() . PHP_EOL);
 
@@ -315,6 +316,7 @@ final class BiomeChunkGenParser{
 		VarInt::writeSignedInt($out, $v['iterationsType']);
 		LE::writeSignedShort($out, $v['iterations']);
 	}
+
 	private static function readCoordinate(ByteBufferReader $in) : array{Debugger::debug("offset=" . $in->getOffset() . PHP_EOL);
 
 		$minValueType = VarInt::readSignedInt($in);
@@ -352,6 +354,7 @@ final class BiomeChunkGenParser{
 
 		VarInt::writeSignedInt($out, $v['distribution']);
 	}
+
 	private static function readMesaSurface(ByteBufferReader $in) : array{
 		return [
 			'clayMaterial' => LE::readUnsignedInt($in),
@@ -369,6 +372,7 @@ final class BiomeChunkGenParser{
 		CommonTypes::putBool($out, $v['brycePillars']);
 		CommonTypes::putBool($out, $v['forest']);
 	}
+
 	private static function readCappedSurface(ByteBufferReader $in) : array{
 
 		$floor = [];
@@ -414,6 +418,7 @@ final class BiomeChunkGenParser{
 		CommonTypes::writeOptional($out,$v['foundationBlock'],fn($out,$x) => LE::writeUnsignedInt($out,$x));
 		CommonTypes::writeOptional($out,$v['beachBlock'],fn($out,$x) => LE::writeUnsignedInt($out,$x));
 	}
+
 	private static function readSurfaceMaterialAdjustment(ByteBufferReader $in) : array{
 		Debugger::debug("readSurfaceMaterialAdjustment offset element=" . $in->getOffset() . PHP_EOL);
 
@@ -435,6 +440,7 @@ final class BiomeChunkGenParser{
 			self::writeBiomeElement($out, $element);
 		}
 	}
+
 	private static function readBiomeElement(ByteBufferReader $in) : array{
 		Debugger::debug("readBiomeElement offset element=" . $in->getOffset() . PHP_EOL);
 
@@ -467,6 +473,7 @@ final class BiomeChunkGenParser{
 
 		self::writeSurfaceMaterial($out, $v['surfaceMaterial']);
 	}
+
 	private static function readOverworldGenRules(ByteBufferReader $in) : array{
 
 		return [
@@ -494,6 +501,7 @@ final class BiomeChunkGenParser{
 
 		self::writeWeightedTemperatureArray($out, $v['climates']);
 	}
+
 	private static function readWeightedBiomeArray(ByteBufferReader $in) : array{
 
 		$count = VarInt::readUnsignedInt($in);
@@ -518,6 +526,7 @@ final class BiomeChunkGenParser{
 			LE::writeUnsignedInt($out, $v['weight']);
 		}
 	}
+
 	private static function readConditionalTransformationArray(ByteBufferReader $in) : array{
 
 		$count = VarInt::readUnsignedInt($in);
@@ -552,6 +561,7 @@ final class BiomeChunkGenParser{
 			LE::writeUnsignedInt($out, $v['minPassingNeighbors']);
 		}
 	}
+
 	private static function readWeightedTemperatureArray(ByteBufferReader $in) : array{
 
 		$count = VarInt::readUnsignedInt($in);
@@ -576,6 +586,7 @@ final class BiomeChunkGenParser{
 			LE::writeUnsignedInt($out, $v['weight']);
 		}
 	}
+
 	private static function readLegacyWorldGenRules(ByteBufferReader $in) : array{
 
 		$count = VarInt::readUnsignedInt($in);

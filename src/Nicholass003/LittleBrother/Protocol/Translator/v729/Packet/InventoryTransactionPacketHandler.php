@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator\v729\Packet;
 
+use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
 use Nicholass003\LittleBrother\Protocol\Translator\ManualPacketHandler;
 use Nicholass003\LittleBrother\Schema\PacketContext;
 use Nicholass003\LittleBrother\Types\TypeRegistry;
@@ -46,6 +47,7 @@ class InventoryTransactionPacketHandler extends ManualPacketHandler{
 
 	public function __construct(TypeRegistry $typeRegistry){
 		$this->typeRegistry = $typeRegistry;
+		parent::__construct($typeRegistry->getPlugin());
 	}
 
 	public function translateInbound(int $protocol, ByteBufferReader $in) : string{
@@ -106,31 +108,15 @@ class InventoryTransactionPacketHandler extends ManualPacketHandler{
 				throw new PacketDecodeException("Unknown transaction type $transactionType");
 		}
 
-		$remaining = $in->getUnreadLength();
-		if($remaining > 0){
-			$remainingData = $in->readByteArray($remaining);
-			$out->writeByteArray($remainingData);
-		}
-
 		return $out->getData();
 	}
 
 	private function readWriteNormalTransactionData(ByteBufferReader $in, ByteBufferWriter $out, PacketContext $context, int $protocol) : void{
 		$this->readWriteNetworkInventoryActions($in, $out, $context, $protocol);
-
-		$remaining = $in->getUnreadLength();
-		if($remaining > 0){
-			$out->writeByteArray($in->readByteArray($remaining));
-		}
 	}
 
 	private function readWriteMismatchTransactionData(ByteBufferReader $in, ByteBufferWriter $out, PacketContext $context, int $protocol) : void{
 		$this->readWriteNetworkInventoryActions($in, $out, $context, $protocol);
-
-		$remaining = $in->getUnreadLength();
-		if($remaining > 0){
-			$out->writeByteArray($in->readByteArray($remaining));
-		}
 	}
 
 	private function readWriteUseItemTransactionData(ByteBufferReader $in, ByteBufferWriter $out, PacketContext $context, int $protocol) : void{
@@ -146,7 +132,7 @@ class InventoryTransactionPacketHandler extends ManualPacketHandler{
 
 		// blockPosition
 		$blockPosition = $this->typeRegistry->read($in, 'blockpos', $protocol, $context);
-		$this->typeRegistry->write($out, 'blockpos_legacy', $blockPosition, $protocol, $context);
+		$this->typeRegistry->write($out, 'blockpos', $blockPosition, $protocol, $context);
 
 		// face
 		$face = VarInt::readSignedInt($in);
@@ -176,10 +162,12 @@ class InventoryTransactionPacketHandler extends ManualPacketHandler{
 		$clientInteractPrediction = VarInt::readUnsignedInt($in);
 		VarInt::writeUnsignedInt($out, $clientInteractPrediction);
 
-		// trailing bytes
-		$remaining = $in->getUnreadLength();
-		if($remaining > 0){
-			$remainingData = $in->readByteArray($remaining);
+		// clientCooldownState
+		if($protocol >= ProtocolVersion::BE_1_26_10){
+			$clientCooldownState = Byte::readUnsigned($in);
+			Byte::writeUnsigned($out, $clientCooldownState);
+		}else{
+			Byte::writeUnsigned($out, 0);
 		}
 	}
 
@@ -203,11 +191,6 @@ class InventoryTransactionPacketHandler extends ManualPacketHandler{
 
 		$clickPosition = $this->typeRegistry->read($in, 'vector3', $protocol, $context);
 		$this->typeRegistry->write($out, 'vector3', $clickPosition, $protocol, $context);
-
-		$remaining = $in->getUnreadLength();
-		if($remaining > 0){
-			$out->writeByteArray($in->readByteArray($remaining));
-		}
 	}
 
 	private function readWriteReleaseItemTransactionData(ByteBufferReader $in, ByteBufferWriter $out, PacketContext $context, int $protocol) : void{
@@ -224,11 +207,6 @@ class InventoryTransactionPacketHandler extends ManualPacketHandler{
 
 		$headPosition = $this->typeRegistry->read($in, 'vector3', $protocol, $context);
 		$this->typeRegistry->write($out, 'vector3', $headPosition, $protocol, $context);
-
-		$remaining = $in->getUnreadLength();
-		if($remaining > 0){
-			$out->writeByteArray($in->readByteArray($remaining));
-		}
 	}
 
 	private function readWriteNetworkInventoryActions(ByteBufferReader $in, ByteBufferWriter $out, PacketContext $context, int $protocol) : void{
@@ -263,10 +241,6 @@ class InventoryTransactionPacketHandler extends ManualPacketHandler{
 				$oldItem = $this->typeRegistry->read($in, 'item_stack_wrapper', $protocol, $context);
 				$this->typeRegistry->write($out, 'item_stack_wrapper', $oldItem, $protocol, $context);
 			}catch(\Exception $e){
-				$remaining = $in->getUnreadLength();
-				if($remaining > 0){
-					$out->writeByteArray($in->readByteArray($remaining));
-				}
 				return;
 			}
 
@@ -275,10 +249,6 @@ class InventoryTransactionPacketHandler extends ManualPacketHandler{
 				$newItem = $this->typeRegistry->read($in, 'item_stack_wrapper', $protocol, $context);
 				$this->typeRegistry->write($out, 'item_stack_wrapper', $newItem, $protocol, $context);
 			}catch(\Exception $e){
-				$remaining = $in->getUnreadLength();
-				if($remaining > 0){
-					$out->writeByteArray($in->readByteArray($remaining));
-				}
 				return;
 			}
 		}

@@ -25,10 +25,13 @@ declare(strict_types=1);
 namespace Nicholass003\LittleBrother\Types;
 
 use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
+use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
+use pocketmine\network\mcpe\protocol\types\BlockPosition;
 use pocketmine\network\mcpe\protocol\types\entity\EntityIds;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\network\mcpe\protocol\types\entity\IntMetadataProperty;
+use pocketmine\utils\Binary;
 
 final class CommonTypesAdapter{
 
@@ -65,25 +68,28 @@ final class CommonTypesAdapter{
 		);
 		$registry->register(
 			"blockpos",
+			fn($in, $protocol, $context) => $context->getTypeRegistry()->read($in, 'blockpos_legacy', $protocol, $context),
+			fn($out, $v, $protocol, $context) => $context->getTypeRegistry()->write($out, 'blockpos_legacy', $v, $protocol, $context)
+		);
+		$registry->register(
+			"signed_blockpos",
+			fn($in, $protocol, $context) => CommonTypes::getBlockPosition($in),
+			fn($out, $v, $protocol, $context) => CommonTypes::putBlockPosition($out, $v)
+		);
+		$registry->register(
+			"blockpos_legacy",
 			function($in, $protocol, $context) {
-				if($protocol >= ProtocolVersion::BE_1_26_10){
-					return CommonTypes::getSignedBlockPosition($in);
+				if($protocol <= ProtocolVersion::BE_1_26_0){
+					$x = VarInt::readSignedInt($in);
+					$y = Binary::signInt(VarInt::readUnsignedInt($in));
+					$z = VarInt::readSignedInt($in);
+					return new BlockPosition($x, $y, $z);
 				}
 				return CommonTypes::getBlockPosition($in);
 			},
 			function($out, $v, $protocol, $context) {
 				CommonTypes::putBlockPosition($out, $v);
 			}
-		);
-		$registry->register(
-			"signed_blockpos",
-			fn($in, $protocol, $context) => CommonTypes::getSignedBlockPosition($in),
-			fn($out, $v, $protocol, $context) => CommonTypes::putSignedBlockPosition($out, $v)
-		);
-		$registry->register(
-			"blockpos_legacy",
-			fn($in, $protocol, $context) => CommonTypes::getBlockPosition($in),
-			fn($out, $v, $protocol, $context) => CommonTypes::putBlockPosition($out, $v)
 		);
 
 		// ActorRuntimeId
