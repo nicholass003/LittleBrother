@@ -27,14 +27,8 @@ namespace Nicholass003\LittleBrother\Schema;
 use Nicholass003\LittleBrother\Types\TypeRegistry;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
-use function array_search;
 use function count;
 use function is_array;
-use function is_bool;
-use function is_float;
-use function is_int;
-use function is_object;
-use function is_string;
 
 final class SchemaCompiler{
 
@@ -78,7 +72,7 @@ final class SchemaCompiler{
 
 			if($hasVariants){
 				$firstOccurrence = $fieldsByName[$name][0];
-				if($firstOccurrence['index'] !== array_search($field, $fields, true)){
+				if($firstOccurrence['field'] !== $field){
 					continue;
 				}
 
@@ -90,6 +84,7 @@ final class SchemaCompiler{
 						'since' => $variantField['since'] ?? null,
 						'until' => $variantField['until'] ?? null,
 						'default' => $variantField['default'] ?? null,
+						'value' => $variantField['value'] ?? null,
 					];
 				}
 
@@ -252,9 +247,34 @@ final class SchemaCompiler{
 					int $src,
 					int $dst,
 					PacketContext $context
-				) use ($valueType, $direction) : void{
+				) use ($valueType, $since, $until, $default, $direction) : void{
+
+					$existsInSrc = true;
+					$existsInDst = true;
+
+					if($since !== null){
+						if($src < $since) $existsInSrc = false;
+						if($dst < $since) $existsInDst = false;
+					}
+
+					if($until !== null){
+						if($src > $until) $existsInSrc = false;
+						if($dst > $until) $existsInDst = false;
+					}
+
+					if(!$existsInSrc && !$existsInDst){
+						return;
+					}
+
+					if(!$existsInSrc){
+						if($existsInDst){
+							$types->write($out, "bool", false, $dst, $context);
+						}
+						return;
+					}
 
 					$protocolForReader = self::getProtocolForReader($src, $dst, $direction);
+
 					$has = $types->read($in, "bool", $protocolForReader, $context);
 					$types->write($out, "bool", $has, $dst, $context);
 
@@ -288,7 +308,7 @@ final class SchemaCompiler{
 	 * This handles cases where schema has multiple fields with same name but different since/until
 	 *
 	 * @param string      $name      Field name
-	 * @param array       $variants  Array of variant definitions with type, since, until, default
+	 * @param array       $variants  Array of variant definitions with type, since, until, default, value
 	 * @param string|null $direction Direction of translation
 	 * @return callable Instruction
 	 */
@@ -343,38 +363,72 @@ final class SchemaCompiler{
 				}
 			}
 
+			$value = null;
 			if($readVariant !== null){
-				$value = $types->read($in, $readVariant['type'], $protocolForReader, $context);
+				$value = self::readVariantValue($in, $readVariant, $types, $protocolForReader, $context);
+			}elseif($writeVariant !== null){
+				$value = $writeVariant['default'] ?? null;
 			}
 
 			if($writeVariant !== null){
-				$default = $writeVariant['default'];
-				$types->write($out, $writeVariant['type'], self::convertType($value, $default), $writeProtocol, $context);
+				self::writeVariantValue($out, $writeVariant, $value, $types, $writeProtocol, $context);
 			}
 		};
 	}
 
 	/**
-	 * @param mixed $value
-	 * @param mixed $default
+	 * Read value from a variant, handling 'optional' specially.
 	 *
+	 * @param ByteBufferReader $in
+	 * @param array            $variant
+	 * @param TypeRegistry     $types
+	 * @param int              $protocol
+	 * @param PacketContext    $context
 	 * @return mixed
 	 */
-	private static function convertType(mixed $value, mixed $default) : mixed{
-		if(is_object($value)){
-			return $value;
-		}elseif(is_string($default)){
-			return (string) $value;
-		}elseif(is_float($default)){
-			return (float) $value;
-		}elseif((is_int($default))){
-			return (int) $value;
-		}elseif(is_bool($default)){
-			return (bool) $value;
-		}elseif(is_array($default)){
-			return (array) $value;
+	private static function readVariantValue(ByteBufferReader $in, array $variant, TypeRegistry $types, int $protocol, PacketContext $context) : mixed{
+		$type = $variant['type'];
+		if($type === 'optional'){
+			$has = $types->read($in, 'bool', $protocol, $context);
+			if(!$has){
+				return null;
+			}
+			$valueType = $variant['value'];
+			if($valueType === null){
+				throw new \RuntimeException("Optional variant missing 'value'");
+			}
+			if(is_array($valueType)){
+				// Nested optional with complex structure not supported in variant for simplicity
+				throw new \RuntimeException("Nested optional with array value not supported in version variant");
+			}
+			return $types->read($in, $valueType, $protocol, $context);
 		}
-		return $value;
+		return $types->read($in, $type, $protocol, $context);
+	}
+
+	/**
+	 * Write value for a variant, handling 'optional' specially.
+	 *
+	 * @param ByteBufferWriter $out
+	 * @param array            $variant
+	 * @param mixed            $value
+	 * @param TypeRegistry     $types
+	 * @param int              $protocol
+	 * @param PacketContext    $context
+	 * @return void
+	 */
+	private static function writeVariantValue(ByteBufferWriter $out, array $variant, mixed $value, TypeRegistry $types, int $protocol, PacketContext $context) : void{
+		$type = $variant['type'];
+		if($type === 'optional'){
+			$has = $value !== null;
+			$types->write($out, 'bool', $has, $protocol, $context);
+			if($has){
+				$valueType = $variant['value'];
+				$types->write($out, $valueType, $value, $protocol, $context);
+			}
+		}else{
+			$types->write($out, $type, $value, $protocol, $context);
+		}
 	}
 
 	/**

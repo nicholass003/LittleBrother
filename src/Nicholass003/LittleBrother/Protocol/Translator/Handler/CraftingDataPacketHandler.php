@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator\Handler;
 
+use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
 use Nicholass003\LittleBrother\Protocol\Translator\ManualPacketHandler;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
@@ -35,13 +36,12 @@ use pocketmine\network\mcpe\protocol\types\recipe\ShapedRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\ShapelessRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\SmithingTransformRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\SmithingTrimRecipe;
+use function count;
 
 final class CraftingDataPacketHandler extends ManualPacketHandler{
 
 	public function translateInbound(int $protocol, ByteBufferReader $in) : string{
-		return $in->getUnreadLength() > 0
-			? $in->readByteArray($in->getUnreadLength())
-			: "";
+		return $this->passthrough($in);
 	}
 
 	public function translateOutbound(int $protocol, ByteBufferReader $in) : string{
@@ -53,13 +53,13 @@ final class CraftingDataPacketHandler extends ManualPacketHandler{
 
 		$recipeCount = VarInt::readUnsignedInt($in);
 
-		VarInt::writeUnsignedInt($writer, $recipeCount);
+		$recipes = [];
 
 		for($i = 0; $i < $recipeCount; ++$i){
 
 			$type = VarInt::readSignedInt($in);
 
-			VarInt::writeSignedInt($writer, $type);
+			$recipeWriter = new ByteBufferWriter();
 
 			switch($type){
 
@@ -67,39 +67,64 @@ final class CraftingDataPacketHandler extends ManualPacketHandler{
 				case 5:
 				case 6:
 					$recipe = ShapelessRecipe::decode($type, $in);
-					$recipe->encode($writer);
-				break;
 
+					VarInt::writeSignedInt($recipeWriter, $type);
+					$recipe->encode($recipeWriter);
+
+					$recipes[] = $recipeWriter->getData();
+					break;
 				case 1: // shaped
 				case 7:
 					$recipe = ShapedRecipe::decode($type, $in);
-					$recipe->encode($writer);
-				break;
 
+					VarInt::writeSignedInt($recipeWriter, $type);
+					$recipe->encode($recipeWriter);
+
+					$recipes[] = $recipeWriter->getData();
+					break;
 				case 2: // furnace
 				case 3:
 					$recipe = FurnaceRecipe::decode($type, $in);
-					$recipe->encode($writer);
-				break;
+					if($protocol < ProtocolVersion::BE_1_26_20){
+						$recipe->encode($recipeWriter);
 
+						$recipes[] = $recipeWriter->getData();
+					}
+					break;
 				case 4:
 					$recipe = MultiRecipe::decode($type, $in);
-					$recipe->encode($writer);
-				break;
 
+					VarInt::writeSignedInt($recipeWriter, $type);
+					$recipe->encode($recipeWriter);
+
+					$recipes[] = $recipeWriter->getData();
+					break;
 				case 8:
 					$recipe = SmithingTransformRecipe::decode($type, $in);
-					$recipe->encode($writer);
-				break;
 
+					VarInt::writeSignedInt($recipeWriter, $type);
+					$recipe->encode($recipeWriter);
+
+					$recipes[] = $recipeWriter->getData();
+					break;
 				case 9:
 					$recipe = SmithingTrimRecipe::decode($type, $in);
-					$recipe->encode($writer);
-				break;
+
+					VarInt::writeSignedInt($recipeWriter, $type);
+					$recipe->encode($recipeWriter);
+
+					$recipes[] = $recipeWriter->getData();
+					break;
 
 				default:
 					throw new \RuntimeException("Unknown recipe type $type");
 			}
+		}
+
+		VarInt::writeUnsignedInt($writer, count($recipes));
+
+		foreach($recipes as $recipeData){
+			$writer->writeByteArray($recipeData);
 		}
 
 		/*

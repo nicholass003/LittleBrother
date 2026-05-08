@@ -26,14 +26,13 @@ namespace Nicholass003\LittleBrother\Convert;
 
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use RuntimeException;
-
 use function array_keys;
 use function is_dir;
 use function is_numeric;
 use function scandir;
 use const pocketmine\BEDROCK_DATA_PATH;
 
-final class BedrockDataManager {
+final class BedrockDataManager{
 
 	/** Resolved protocol dirs */
 	private array $protocolDirs = [];
@@ -43,19 +42,19 @@ final class BedrockDataManager {
 
 	public function __construct(
 		private string $dataPath
-	) {
+	){
 		$this->scanDirs();
 	}
 
-	private function scanDirs() : void {
+	private function scanDirs() : void{
 		$base = $this->dataPath . '/bedrock';
 
-		if (!is_dir($base)) {
+		if(!is_dir($base)){
 			throw new RuntimeException("Bedrock data folder missing: $base");
 		}
 
-		foreach (scandir($base) as $dir) {
-			if (!is_numeric($dir)) {
+		foreach(scandir($base) as $dir){
+			if(!is_numeric($dir)){
 				continue;
 			}
 			$this->protocolDirs[(int) $dir] = $base . '/' . $dir;
@@ -64,8 +63,8 @@ final class BedrockDataManager {
 		$this->protocolDirs[ProtocolInfo::CURRENT_PROTOCOL] = BEDROCK_DATA_PATH;
 	}
 
-	public function get(int $protocol) : BedrockData {
-		if (!isset($this->protocolDirs[$protocol])) {
+	public function get(int $protocol) : BedrockData{
+		if(!isset($this->protocolDirs[$protocol])){
 			throw new RuntimeException("Unsupported protocol $protocol");
 		}
 
@@ -75,7 +74,7 @@ final class BedrockDataManager {
 		);
 	}
 
-	public function getSupportedProtocols() : array {
+	public function getSupportedProtocols() : array{
 		return array_keys($this->protocolDirs);
 	}
 }

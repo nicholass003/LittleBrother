@@ -33,12 +33,14 @@ use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\protocol\LoginPacket;
 use pocketmine\network\mcpe\protocol\PlayerAuthInputPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\RequestNetworkSettingsPacket;
-use function array_values;
+use pocketmine\network\mcpe\protocol\ResourcePackChunkDataPacket;
 use function in_array;
-use function spl_object_id;
+use function json_decode;
+use function json_encode;
 use function strlen;
 
 class EventListener implements Listener{
@@ -57,6 +59,14 @@ class EventListener implements Listener{
 		$packet = $event->getPacket();
 		$session = $event->getOrigin();
 		Debugger::debug("Receive " . $packet->getName(), $packet instanceof PlayerAuthInputPacket);
+		// HACK: force add missing Certificate field to authInfoJson
+		if($packet instanceof LoginPacket){
+			$authInfo = json_decode($packet->authInfoJson, true);
+			if(!isset($authInfo["Certificate"])){
+				$authInfo["Certificate"] = "";
+			}
+			$packet->authInfoJson = json_encode($authInfo);
+		}
 
 		if(!($packet instanceof RequestNetworkSettingsPacket)) return;
 
@@ -96,10 +106,13 @@ class EventListener implements Listener{
 		$storage = $this->plugin->getProtocolStorage();
 		$cache = $this->plugin->getCache();
 
-		$hasOldClient = false;
 		foreach($packets as $packet){
-			Debugger::debug("Sending " . $packet->getName(), $packet instanceof PlayerAuthInputPacket);
+			if($packet instanceof ResourcePackChunkDataPacket){
+				return;
+			}
 		}
+
+		$hasOldClient = false;
 		foreach($targets as $target){
 			$protocol = $storage->get($target);
 			if($protocol !== null && $protocol !== ProtocolInfo::CURRENT_PROTOCOL){
@@ -109,9 +122,9 @@ class EventListener implements Listener{
 		}
 		if(!$hasOldClient) return;
 
-		$writer = new ByteBufferWriter();
+		$event->cancel();
 
-		$nonTranslatedSet = [];
+		$writer = new ByteBufferWriter();
 
 		foreach($packets as $packet){
 			Debugger::debug("Sending " . $packet->getName(), $packet instanceof PlayerAuthInputPacket);
@@ -119,18 +132,18 @@ class EventListener implements Listener{
 			$writer->clear();
 			$buffer = NetworkSession::encodePacketTimed($writer, $packet);
 
-			$needsDefaultSend = false;
+			$nativeTargets = [];
 
 			foreach($targets as $target){
 				$protocol = $storage->get($target);
 
 				if($protocol === null || $protocol === ProtocolInfo::CURRENT_PROTOCOL){
-					$needsDefaultSend = true;
+					$nativeTargets[] = $target;
 					continue;
 				}
 
 				if(!in_array($protocol, ProtocolVersion::SUPPORTED_PROTOCOLS, true)){
-					$needsDefaultSend = true;
+					$nativeTargets[] = $target;
 					continue;
 				}
 
@@ -141,10 +154,10 @@ class EventListener implements Listener{
 					}catch(\Throwable $e){
 						Debugger::debug("Translator error in packet " . $packet->getName());
 						Debugger::debug($e->getMessage());
-						throw $e;
+						continue;
 					}
 					if($result === null){
-						$needsDefaultSend = true;
+						Debugger::debug("Drop for old client: " . $packet->getName());
 						continue;
 					}
 					$translated = $result;
@@ -160,15 +173,14 @@ class EventListener implements Listener{
 				$this->plugin->getPacketBatchTranslator()->setBypass(false);
 			}
 
-			if($needsDefaultSend){
-				$nonTranslatedSet[spl_object_id($packet)] = $packet;
+			if(!empty($nativeTargets)){
+				foreach($nativeTargets as $nativeTarget){
+					$nativeTarget->addToSendBuffer($buffer);
+					$this->plugin->getPacketBatchTranslator()->setBypass(true);
+					$this->flushSession($nativeTarget);
+					$this->plugin->getPacketBatchTranslator()->setBypass(false);
+				}
 			}
-		}
-
-		$event->setPackets(array_values($nonTranslatedSet));
-
-		foreach($event->getPackets() as $p){
-			Debugger::debug("Non-translated packet: " . $p->getName(), $p instanceof PlayerAuthInputPacket);
 		}
 	}
 

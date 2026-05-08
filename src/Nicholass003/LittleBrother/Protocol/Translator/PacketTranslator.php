@@ -49,15 +49,12 @@ use pocketmine\network\mcpe\protocol\ProtocolInfo;
 
 final class PacketTranslator{
 
-	private ByteBufferWriter $writer;
-
 	public function __construct(
 		private SchemaTranslator $schema,
 		private ManualPacketRegistry $manual,
 		private RuntimePacketRegistry $runtime,
 		private LittleBrother $plugin
 	){
-		$this->writer = new ByteBufferWriter();
 		$this->registerRuntimePacketHandlers();
 		$this->registerHandlers();
 	}
@@ -124,15 +121,15 @@ final class PacketTranslator{
 			}
 		}
 
-		$this->writer->clear();
+		$writer = new ByteBufferWriter();
 
-		VarInt::writeUnsignedInt($this->writer, $header);
+		VarInt::writeUnsignedInt($writer, $header);
 
 		if($result !== ""){
-			$this->writer->writeByteArray($result);
+			$writer->writeByteArray($result);
 		}
 
-		return $this->writer->getData();
+		return $writer->getData();
 	}
 
 	public function translateOutbound(int $protocol, string $payload) : ?string{
@@ -175,15 +172,15 @@ final class PacketTranslator{
 			}
 		}
 
-		$this->writer->clear();
+		$writer = new ByteBufferWriter();
 
-		VarInt::writeUnsignedInt($this->writer, $header);
+		VarInt::writeUnsignedInt($writer, $header);
 
 		if($result !== ""){
-			$this->writer->writeByteArray($result);
+			$writer->writeByteArray($result);
 		}
 
-		return $this->writer->getData();
+		return $writer->getData();
 	}
 
 	public function getManualRegistry() : ManualPacketRegistry{

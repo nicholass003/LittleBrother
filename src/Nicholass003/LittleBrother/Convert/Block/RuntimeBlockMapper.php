@@ -68,6 +68,9 @@ final class RuntimeBlockMapper{
 			if($protocol === ProtocolInfo::CURRENT_PROTOCOL){
 				continue;
 			}
+			if(isset(ProtocolVersion::PARENT_PROTOCOLS[$protocol])){
+				$protocol = ProtocolVersion::PARENT_PROTOCOLS[$protocol];
+			}
 
 			$clientDict = BlockStateDictionary::loadFromString(
 				Filesystem::fileGetContents($manager->get($protocol)->canonicalBlockStates()),

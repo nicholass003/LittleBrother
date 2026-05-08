@@ -40,6 +40,9 @@ final class ItemRuntimeIdMapper{
 
 		foreach(ProtocolVersion::SUPPORTED_PROTOCOLS as $protocol){
 			if($protocol === ProtocolInfo::CURRENT_PROTOCOL) continue;
+			if(isset(ProtocolVersion::PARENT_PROTOCOLS[$protocol])){
+				$protocol = ProtocolVersion::PARENT_PROTOCOLS[$protocol];
+			}
 
 			$clientDict = new ItemStateDictionary(
 				$manager->get($protocol)->requiredItemList()
