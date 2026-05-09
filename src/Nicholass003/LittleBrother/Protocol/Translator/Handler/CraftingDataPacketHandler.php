@@ -56,13 +56,11 @@ final class CraftingDataPacketHandler extends ManualPacketHandler{
 		$recipes = [];
 
 		for($i = 0; $i < $recipeCount; ++$i){
-
 			$type = VarInt::readSignedInt($in);
 
 			$recipeWriter = new ByteBufferWriter();
 
 			switch($type){
-
 				case 0: // shapeless
 				case 5:
 				case 6:
@@ -86,6 +84,7 @@ final class CraftingDataPacketHandler extends ManualPacketHandler{
 				case 3:
 					$recipe = FurnaceRecipe::decode($type, $in);
 					if($protocol < ProtocolVersion::BE_1_26_20){
+						VarInt::writeSignedInt($recipeWriter, $type);
 						$recipe->encode($recipeWriter);
 
 						$recipes[] = $recipeWriter->getData();

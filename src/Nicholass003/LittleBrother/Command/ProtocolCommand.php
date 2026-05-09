@@ -24,7 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Command;
 
-use Nicholass003\LittleBrother\libs\_c11949585f30ad5e\CortexPE\Commando\BaseCommand;
+use Nicholass003\LittleBrother\libs\_cbfdd78c10524507\CortexPE\Commando\BaseCommand;
 use Nicholass003\LittleBrother\LittleBrother;
 use Nicholass003\LittleBrother\Protocol\ProtocolVersion;
 use pocketmine\command\CommandSender;
