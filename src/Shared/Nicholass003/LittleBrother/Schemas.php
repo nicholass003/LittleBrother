@@ -12,7 +12,7 @@ namespace Shared\Nicholass003\LittleBrother;
  *   898 → 54.0.0+bedrock-1.21.130
  *   924 → 55.0.0+bedrock-1.26.0
  *   944 → 56.0.0+bedrock-1.26.10
- *   975 → bedrock-1.26.20
+ *   975 → 57.1.0+bedrock-1.26.20
  *
  * ROOT-LEVEL keys per packet:
  *   since=X    → new packet, absent in protocols < X. SchemaTranslator drops outbound.
@@ -4779,7 +4779,7 @@ class Schemas{
 			],
 			328 => [
 				'packet' => 'PrimitiveShapesPacket',
-				'since' => 975,
+				'since' => 860,
 				'fields' => [
 					0 => [
 						'name' => 'shapes',
@@ -4789,95 +4789,95 @@ class Schemas{
 							[
 								'name' => 'networkId',
 								'type' => 'uvarlong',
-								'since' => 975,
+								'since' => 860,
 								'default' => 0,
 							],
 							[
 								'name' => 'type',
 								'type' => 'optional',
 								'value' => 'unknown',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 							[
 								'name' => 'location',
 								'type' => 'optional',
 								'value' => 'vector3',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 							[
 								'name' => 'scale',
 								'type' => 'optional',
 								'value' => 'le:f32',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 							[
 								'name' => 'rotation',
 								'type' => 'optional',
 								'value' => 'vector3',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 							[
 								'name' => 'totalTimeLeft',
 								'type' => 'optional',
 								'value' => 'le:f32',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 							[
 								'name' => 'color',
 								'type' => 'optional',
 								'value' => 'unknown',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 							[
 								'name' => 'text',
 								'type' => 'optional',
 								'value' => 'string',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 							[
 								'name' => 'boxBound',
 								'type' => 'optional',
 								'value' => 'vector3',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 							[
 								'name' => 'lineEndLocation',
 								'type' => 'optional',
 								'value' => 'vector3',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 							[
 								'name' => 'arrowHeadLength',
 								'type' => 'optional',
 								'value' => 'le:f32',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 							[
 								'name' => 'arrowHeadRadius',
 								'type' => 'optional',
 								'value' => 'le:f32',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 							[
 								'name' => 'segments',
 								'type' => 'optional',
 								'value' => 'u8',
-								'since' => 975,
+								'since' => 860,
 								'default' => null,
 							],
 						],
-						'since' => 975,
+						'since' => 860,
 						'default' => 0,
 					],
 				],
