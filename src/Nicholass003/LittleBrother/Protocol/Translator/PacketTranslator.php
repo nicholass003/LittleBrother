@@ -41,11 +41,14 @@ use Nicholass003\LittleBrother\Protocol\Translator\Runtime\UpdateSubChunkBlocksR
 use Nicholass003\LittleBrother\Protocol\Translator\v729\Packet\InventoryTransactionPacketHandler;
 use Nicholass003\LittleBrother\Schema\SchemaRegistry;
 use Nicholass003\LittleBrother\Schema\SchemaTranslator;
+use Nicholass003\LittleBrother\Utils\Debugger;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\DataPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
+use function bin2hex;
+use function strlen;
 
 final class PacketTranslator{
 
@@ -86,6 +89,9 @@ final class PacketTranslator{
 
 		$header = VarInt::readUnsignedInt($reader);
 		$packetId = $header & DataPacket::PID_MASK;
+		Debugger::log("Packet ID: " . $packetId);
+		Debugger::log("Payload HEX: " . bin2hex($payload));
+		Debugger::log("Payload LEN: " . strlen($payload));
 
 		$body = $reader->getUnreadLength() > 0
 			? $reader->readByteArray($reader->getUnreadLength())
@@ -137,6 +143,9 @@ final class PacketTranslator{
 
 		$header = VarInt::readUnsignedInt($reader);
 		$packetId = $header & DataPacket::PID_MASK;
+		Debugger::log("Packet ID: " . $packetId);
+		Debugger::log("Payload HEX: " . bin2hex($payload));
+		Debugger::log("Payload LEN: " . strlen($payload));
 
 		$body = $reader->getUnreadLength() > 0
 			? $reader->readByteArray($reader->getUnreadLength())

@@ -25,6 +25,7 @@ declare(strict_types=1);
 namespace Nicholass003\LittleBrother\Schema;
 
 use Nicholass003\LittleBrother\Types\TypeRegistry;
+use Nicholass003\LittleBrother\Utils\Debugger;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use function count;
@@ -362,6 +363,8 @@ final class SchemaCompiler{
 					break;
 				}
 			}
+			Debugger::log("Variant Reader field={$name} type={$readVariant['type']} protocol={$protocolForReader}");
+			Debugger::log("Variant Writer field={$name} type={$writeVariant['type']} protocol={$writeProtocol}");
 
 			$value = null;
 			if($readVariant !== null){
