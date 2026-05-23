@@ -222,11 +222,38 @@ final class SchemaCompiler{
 						int $src,
 						int $dst,
 						PacketContext $context
-					) use ($subPipeline, $direction) : void{
+					) use ($subPipeline, $since, $until, $direction) : void{
+
+						$existsInSrc = true;
+						$existsInDst = true;
+
+						if($since !== null){
+							if($src < $since) $existsInSrc = false;
+							if($dst < $since) $existsInDst = false;
+						}
+
+						if($until !== null){
+							if($src > $until) $existsInSrc = false;
+							if($dst > $until) $existsInDst = false;
+						}
+
+						if(!$existsInSrc && !$existsInDst){
+							return;
+						}
+
+						if(!$existsInSrc){
+							if($existsInDst){
+								$types->write($out, "bool", false, $dst, $context);
+							}
+							return;
+						}
 
 						$protocolForReader = self::getProtocolForReader($src, $dst, $direction);
 						$has = $types->read($in, "bool", $protocolForReader, $context);
-						$types->write($out, "bool", $has, $dst, $context);
+
+						if($existsInDst){
+							$types->write($out, "bool", $has, $dst, $context);
+						}
 
 						if($has){
 							$subPipeline($in, $out, $types, $src, $dst, $context);
@@ -277,11 +304,15 @@ final class SchemaCompiler{
 					$protocolForReader = self::getProtocolForReader($src, $dst, $direction);
 
 					$has = $types->read($in, "bool", $protocolForReader, $context);
-					$types->write($out, "bool", $has, $dst, $context);
+					if($existsInDst){
+						$types->write($out, "bool", $has, $dst, $context);
+					}
 
 					if($has){
 						$v = $types->read($in, $valueType, $protocolForReader, $context);
-						$types->write($out, $valueType, $v, $dst, $context);
+						if($existsInDst){
+							$types->write($out, $valueType, $v, $dst, $context);
+						}
 					}
 				};
 

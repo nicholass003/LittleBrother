@@ -43,6 +43,7 @@ use pocketmine\network\mcpe\protocol\types\LevelSoundEvent;
 use pocketmine\utils\Binary;
 use function array_flip;
 use function count;
+use function is_null;
 use function ord;
 use function str_split;
 
@@ -1596,7 +1597,7 @@ final class ManualTypeRegistry{
 				$soundId = $context->get('soundId');
 				$extraData = $v['extraData'];
 
-				if($soundId === LevelSoundEvent::PLACE || $soundId === LevelSoundEvent::ITEM_USE_ON){
+				if($soundId === LevelSoundEvent::PLACE || $soundId === LevelSoundEvent::ITEM_USE_ON || LevelSoundEvent::LAND){
 					$blockMapper = $registry->getPlugin()->getRuntimeBlockMapper();
 					$mapped = $blockMapper->serverToClient($protocol, $extraData);
 					$extraData = $mapped;
@@ -1617,7 +1618,13 @@ final class ManualTypeRegistry{
 					'dynamicId' => $dynamicId
 				];
 			},
-			writer: static function(ByteBufferWriter $out, array $v, int $protocol, PacketContext $context) use($registry) : void{
+			writer: static function(ByteBufferWriter $out, ?array $v, int $protocol, PacketContext $context) use($registry) : void{
+				if(is_null($v) && $protocol < ProtocolVersion::BE_1_26_20){
+					$v = [
+						'containerId' => 0,
+						'dynamicId' => null
+					];
+				}
 				Byte::writeUnsigned($out, $v['containerId']);
 				CommonTypes::writeOptional($out, $v['dynamicId'] ?? null, LE::writeUnsignedInt(...));
 			}

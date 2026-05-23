@@ -30,15 +30,25 @@ use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
-use pocketmine\network\mcpe\protocol\types\recipe\FurnaceRecipe;
+use pocketmine\network\mcpe\protocol\types\recipe\FurnaceRecipeBlockName;
+use pocketmine\network\mcpe\protocol\types\recipe\IntIdMetaItemDescriptor;
 use pocketmine\network\mcpe\protocol\types\recipe\MultiRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\ShapedRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\ShapelessRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\SmithingTransformRecipe;
 use pocketmine\network\mcpe\protocol\types\recipe\SmithingTrimRecipe;
 use function count;
+use function in_array;
 
 final class CraftingDataPacketHandler extends ManualPacketHandler{
+
+	private const FURNACE_BLOCK_NAMES = [
+		FurnaceRecipeBlockName::BLAST_FURNACE,
+		FurnaceRecipeBlockName::CAMPFIRE,
+		FurnaceRecipeBlockName::FURNACE,
+		FurnaceRecipeBlockName::SMOKER,
+		FurnaceRecipeBlockName::SOUL_CAMPFIRE,
+	];
 
 	public function translateInbound(int $protocol, ByteBufferReader $in) : string{
 		return $this->passthrough($in);
@@ -65,56 +75,50 @@ final class CraftingDataPacketHandler extends ManualPacketHandler{
 				case 5:
 				case 6:
 					$recipe = ShapelessRecipe::decode($type, $in);
-
-					VarInt::writeSignedInt($recipeWriter, $type);
-					$recipe->encode($recipeWriter);
-
-					$recipes[] = $recipeWriter->getData();
+					if($protocol < ProtocolVersion::BE_1_26_20 && in_array($recipe->getBlockName(), self::FURNACE_BLOCK_NAMES, true)){
+						if($this->convertShapelessToFurnace($recipe, $recipeWriter)){
+							$recipes[] = $recipeWriter->getData();
+						}
+					}else{
+						VarInt::writeSignedInt($recipeWriter, $type);
+						$recipe->encode($recipeWriter);
+						$recipes[] = $recipeWriter->getData();
+					}
 					break;
 				case 1: // shaped
 				case 7:
 					$recipe = ShapedRecipe::decode($type, $in);
-
 					VarInt::writeSignedInt($recipeWriter, $type);
 					$recipe->encode($recipeWriter);
-
 					$recipes[] = $recipeWriter->getData();
 					break;
 				case 2: // furnace
 				case 3:
-					$recipe = FurnaceRecipe::decode($type, $in);
+					$recipe = $this->readFurnaceRecipe($type, $in);
 					if($protocol < ProtocolVersion::BE_1_26_20){
 						VarInt::writeSignedInt($recipeWriter, $type);
-						$recipe->encode($recipeWriter);
-
+						$this->writeFurnaceRecipe($type, $recipe, $recipeWriter);
 						$recipes[] = $recipeWriter->getData();
 					}
 					break;
 				case 4:
 					$recipe = MultiRecipe::decode($type, $in);
-
 					VarInt::writeSignedInt($recipeWriter, $type);
 					$recipe->encode($recipeWriter);
-
 					$recipes[] = $recipeWriter->getData();
 					break;
 				case 8:
 					$recipe = SmithingTransformRecipe::decode($type, $in);
-
 					VarInt::writeSignedInt($recipeWriter, $type);
 					$recipe->encode($recipeWriter);
-
 					$recipes[] = $recipeWriter->getData();
 					break;
 				case 9:
 					$recipe = SmithingTrimRecipe::decode($type, $in);
-
 					VarInt::writeSignedInt($recipeWriter, $type);
 					$recipe->encode($recipeWriter);
-
 					$recipes[] = $recipeWriter->getData();
 					break;
-
 				default:
 					throw new \RuntimeException("Unknown recipe type $type");
 			}
@@ -208,5 +212,55 @@ final class CraftingDataPacketHandler extends ManualPacketHandler{
 		);
 
 		return $writer->getData();
+	}
+
+	/**
+	 * @return bool true if the conversion is successful
+	 */
+	private function convertShapelessToFurnace(ShapelessRecipe $recipe, ByteBufferWriter $out) : bool{
+		$inputs = $recipe->getInputs();
+		$outputs = $recipe->getOutputs();
+		if(count($inputs) !== 1 || count($outputs) !== 1){
+			return false;
+		}
+		$inputDescriptor = $inputs[0]->getDescriptor();
+		if(!$inputDescriptor instanceof IntIdMetaItemDescriptor){
+			return false;
+		}
+		$outputItem = $outputs[0];
+		$typeId = ($inputDescriptor->getMeta() !== 0) ? 3 : 2;
+		VarInt::writeSignedInt($out, $typeId);
+		VarInt::writeSignedInt($out, $inputDescriptor->getId());
+		if($typeId === 3){
+			VarInt::writeSignedInt($out, $inputDescriptor->getMeta());
+		}
+		CommonTypes::putItemStackWithoutStackId($out, $outputItem);
+		CommonTypes::putString($out, $recipe->getBlockName());
+		return true;
+	}
+
+	private function readFurnaceRecipe(int $typeId, ByteBufferReader $in) : array{
+		$inputId = VarInt::readSignedInt($in);
+		$inputData = null;
+		if($typeId === 3){
+			$inputData = VarInt::readSignedInt($in);
+		}
+		$output = CommonTypes::getItemStackWithoutStackId($in);
+		$blockName = CommonTypes::getString($in);
+		return [
+			'inputId' => $inputId,
+			'inputData' => $inputData,
+			'output' => $output,
+			'blockName' => $blockName
+		];
+	}
+
+	private function writeFurnaceRecipe(int $typeId, array $v, ByteBufferWriter $out) : void{
+		VarInt::writeSignedInt($out, $v['inputId']);
+		if($typeId === 3){
+			VarInt::writeSignedInt($out, $v['inputData']);
+		}
+		CommonTypes::putItemStackWithoutStackId($out, $v['output']);
+		CommonTypes::putString($out, $v['blockName']);
 	}
 }

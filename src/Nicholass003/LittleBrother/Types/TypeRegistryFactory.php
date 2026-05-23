@@ -27,6 +27,7 @@ namespace Nicholass003\LittleBrother\Types;
 use Nicholass003\LittleBrother\Convert\Block\RuntimeBlockMapper;
 use Nicholass003\LittleBrother\Convert\Item\ItemRuntimeIdMapper;
 use Nicholass003\LittleBrother\Schema\PacketContext;
+use Nicholass003\LittleBrother\Utils\Debugger;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\LE;
@@ -34,6 +35,7 @@ use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\serializer\CommonTypes;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStack;
 use pocketmine\network\mcpe\protocol\types\inventory\ItemStackWrapper;
+use function is_null;
 
 final class TypeRegistryFactory{
 
@@ -133,7 +135,10 @@ final class TypeRegistryFactory{
 
 				return new ItemStackWrapper($wrapper->getStackId(), $remappedStack);
 			},
-			writer: static function(ByteBufferWriter $out, ItemStackWrapper $wrapper, int $protocol, PacketContext $context) : void{
+			writer: static function(ByteBufferWriter $out, ?ItemStackWrapper $wrapper, int $protocol, PacketContext $context) : void{
+				if(is_null($wrapper)){
+					$wrapper = new ItemStackWrapper(0, ItemStack::null());
+				}
 				CommonTypes::putItemStackWrapper($out, $wrapper);
 			}
 		);
@@ -141,6 +146,7 @@ final class TypeRegistryFactory{
 		$registry->register(
 			'network_item_stack_descriptor',
 			reader: static function(ByteBufferReader $in, int $protocol, PacketContext $context) use ($blockMapper, $itemMapper, $clientProtocol, $inbound) : ItemStackWrapper{
+				Debugger::log("READING NETWORK ITEM DESCRIPTOR");
 				$id = LE::readSignedShort($in);
 				$count = LE::readUnsignedShort($in);
 				$meta = VarInt::readUnsignedInt($in);
