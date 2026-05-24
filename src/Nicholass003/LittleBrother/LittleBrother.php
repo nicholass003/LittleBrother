@@ -24,43 +24,28 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother;
 
-use Nicholass003\LittleBrother\libs\_4d70ca54baa3df8d\bStats\PocketmineMp\Metrics;
-use Nicholass003\LittleBrother\libs\_4d70ca54baa3df8d\CortexPE\Commando\PacketHooker;
-use Nicholass003\LittleBrother\Cache\OutboundPacketCache;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\bStats\PocketmineMp\Metrics;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\CortexPE\Commando\PacketHooker;
 use Nicholass003\LittleBrother\Command\ProtocolCommand;
 use Nicholass003\LittleBrother\Convert\BedrockDataManager;
 use Nicholass003\LittleBrother\Convert\Block\ChunkTranslator;
 use Nicholass003\LittleBrother\Convert\Block\RuntimeBlockMapper;
 use Nicholass003\LittleBrother\Convert\Item\ItemRuntimeIdMapper;
 use Nicholass003\LittleBrother\Protocol\ProtocolStorage;
-use Nicholass003\LittleBrother\Protocol\Translator\ManualPacketRegistry;
 use Nicholass003\LittleBrother\Protocol\Translator\PacketBatchTranslator;
 use Nicholass003\LittleBrother\Protocol\Translator\PacketTranslator;
-use Nicholass003\LittleBrother\Protocol\Translator\RuntimePacketRegistry;
-use Nicholass003\LittleBrother\Schema\SchemaCompiler;
-use Nicholass003\LittleBrother\Schema\SchemaRegistry;
-use Nicholass003\LittleBrother\Schema\SchemaTranslator;
-use Nicholass003\LittleBrother\Types\CommonTypesAdapter;
-use Nicholass003\LittleBrother\Types\PrimitiveTypes;
-use Nicholass003\LittleBrother\Types\TypeRegistry;
-use Nicholass003\LittleBrother\Types\TypeRegistryFactory;
 use Nicholass003\LittleBrother\Utils\Debugger;
 use pocketmine\plugin\PluginBase;
-use pocketmine\scheduler\ClosureTask;
 use pocketmine\utils\SingletonTrait;
-use Shared\Nicholass003\LittleBrother\Schemas;
 use function dirname;
 
 class LittleBrother extends PluginBase{
 	use SingletonTrait;
 
-	public const IS_DEVELOPMENT = false;
+	public const IS_DEVELOPMENT = true;
 
 	private ProtocolStorage $protocolStorage;
 	private PacketTranslator $translator;
-	private OutboundPacketCache $cache;
-	private TypeRegistryFactory $typeRegistryFactory;
-	private SchemaRegistry $schemaRegistry;
 	private ChunkTranslator $chunkTranslator;
 	private BedrockDataManager $bedrockDataManager;
 	private ItemRuntimeIdMapper $itemRuntimeIdMapper;
@@ -94,38 +79,16 @@ class LittleBrother extends PluginBase{
 			$this->bedrockDataManager
 		);
 
-		$baseRegistry = new TypeRegistry();
-		PrimitiveTypes::register($baseRegistry);
-		CommonTypesAdapter::register($baseRegistry);
-
-		$this->typeRegistryFactory = new TypeRegistryFactory(
-			$baseRegistry,
-			$this->runtimeBlockMapper,
-			$this->itemRuntimeIdMapper
-		);
-
-		$this->schemaRegistry = new SchemaRegistry(new SchemaCompiler());
-		$this->schemaRegistry->loadSchemas(Schemas::getSchemas(), true);
-
 		$this->chunkTranslator = new ChunkTranslator(
 			$this->runtimeBlockMapper
 		);
 
-		$this->translator = new PacketTranslator(
-			new SchemaTranslator($this->typeRegistryFactory, $this->schemaRegistry),
-			new ManualPacketRegistry(),
-			new RuntimePacketRegistry(),
-			$this
-		);
+		$this->translator = new PacketTranslator($this);
 
 		$this->protocolStorage = new ProtocolStorage();
-		$this->cache = new OutboundPacketCache();
 		$this->packetBatchTranslator = new PacketBatchTranslator($this->translator);
 
 		$this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
-		$this->getScheduler()->scheduleRepeatingTask(
-			new ClosureTask(fn() => $this->cache->clear()), 20
-		);
 
 		(new Metrics($this, 30103));
 	}
@@ -144,9 +107,6 @@ class LittleBrother extends PluginBase{
 
 	public function getProtocolStorage() : ProtocolStorage{ return $this->protocolStorage; }
 	public function getTranslator() : PacketTranslator{ return $this->translator; }
-	public function getCache() : OutboundPacketCache{ return $this->cache; }
-	public function getTypeRegistryFactory() : TypeRegistryFactory{ return $this->typeRegistryFactory; }
-	public function getSchemaRegistry() : SchemaRegistry{ return $this->schemaRegistry; }
 	public function getChunkTranslator() : ChunkTranslator{ return $this->chunkTranslator; }
 	public function getBedrockDataManager() : BedrockDataManager{ return $this->bedrockDataManager; }
 	public function getItemRuntimeIdMapper() : ItemRuntimeIdMapper{ return $this->itemRuntimeIdMapper; }

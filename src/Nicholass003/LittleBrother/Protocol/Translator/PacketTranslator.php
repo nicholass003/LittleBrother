@@ -24,183 +24,185 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator;
 
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Axiom;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\AddItemActorPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\AddPlayerPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\InventoryContentPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\InventorySlotPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\InventoryTransactionPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\ItemRegistryPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\LevelChunkPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\LevelEventPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\LevelSoundEventPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\MobArmorEquipmentPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\MobEquipmentPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\PacketIds;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\UpdateBlockPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\UpdateBlockSyncedPacket;
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\UpdateSubChunkBlocksPacket;
 use Nicholass003\LittleBrother\LittleBrother;
-use Nicholass003\LittleBrother\Protocol\Translator\Handler\AnimatePacketHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\Handler\CraftingDataPacketHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\Handler\InteractPacketHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\Handler\ItemStackResponsePacketHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\Handler\MovePlayerPacketHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\Handler\PlayerAuthInputPacketHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\Handler\PlayerListPacketHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\Handler\StartGamePacketHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\Handler\TextPacketHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\AddItemActorTranslationHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\AddPlayerTranslationHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\InventoryContentTranslationHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\InventorySlotTranslationHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\InventoryTransactionTranslationHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\ItemRegistryTranslationHandler;
 use Nicholass003\LittleBrother\Protocol\Translator\Runtime\LevelChunkRuntimeHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\Runtime\UpdateBlockRuntimeHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\Runtime\UpdateBlockSyncedRuntimeHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\Runtime\UpdateSubChunkBlocksRuntimeHandler;
-use Nicholass003\LittleBrother\Protocol\Translator\v729\Packet\InventoryTransactionPacketHandler;
-use Nicholass003\LittleBrother\Schema\SchemaRegistry;
-use Nicholass003\LittleBrother\Schema\SchemaTranslator;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\LevelEventPacketHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\LevelSoundEventPacketHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\MobArmorEquipmentTranslationHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\MobEquipmentTranslationHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\UpdateBlockSyncedTranslationHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\UpdateBlockTranslationHandler;
+use Nicholass003\LittleBrother\Protocol\Translator\Runtime\UpdateSubChunkBlocksTranslationHandler;
 use Nicholass003\LittleBrother\Utils\Debugger;
 use pmmp\encoding\ByteBufferReader;
 use pmmp\encoding\ByteBufferWriter;
 use pmmp\encoding\VarInt;
 use pocketmine\network\mcpe\protocol\DataPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use function bin2hex;
-use function strlen;
+use pocketmine\utils\TextFormat;
+use function in_array;
+use function is_int;
 
 final class PacketTranslator{
 
+	/** @var array<int, RuntimePacketHandler> */
+	private array $packetHandlers = [];
+
 	public function __construct(
-		private SchemaTranslator $schema,
-		private ManualPacketRegistry $manual,
-		private RuntimePacketRegistry $runtime,
 		private LittleBrother $plugin
 	){
-		$this->registerRuntimePacketHandlers();
 		$this->registerHandlers();
 	}
 
-	private function registerRuntimePacketHandlers() : void{
-		$registry = $this->runtime;
-		$registry->register(ProtocolInfo::LEVEL_CHUNK_PACKET, new LevelChunkRuntimeHandler($this->plugin->getChunkTranslator()));
-		$registry->register(ProtocolInfo::UPDATE_BLOCK_PACKET, new UpdateBlockRuntimeHandler($this->plugin->getRuntimeBlockMapper()));
-		$registry->register(ProtocolInfo::UPDATE_SUB_CHUNK_BLOCKS_PACKET, new UpdateSubChunkBlocksRuntimeHandler($this->plugin->getRuntimeBlockMapper()));
-		$registry->register(ProtocolInfo::UPDATE_BLOCK_SYNCED_PACKET, new UpdateBlockSyncedRuntimeHandler($this->plugin->getRuntimeBlockMapper()));
-	}
-
 	private function registerHandlers() : void{
-		$registry = $this->manual;
-		$registry->register(ProtocolInfo::CRAFTING_DATA_PACKET, new CraftingDataPacketHandler($this->plugin));
-		$registry->register(ProtocolInfo::PLAYER_LIST_PACKET, new PlayerListPacketHandler($this->plugin));
-		$registry->register(ProtocolInfo::START_GAME_PACKET, new StartGamePacketHandler($this->plugin));
-		$registry->register(ProtocolInfo::TEXT_PACKET, new TextPacketHandler($this->plugin));
-		$registry->register(ProtocolInfo::PLAYER_AUTH_INPUT_PACKET, new PlayerAuthInputPacketHandler($this->plugin));
-		$registry->register(ProtocolInfo::MOVE_PLAYER_PACKET, new MovePlayerPacketHandler($this->plugin));
-		$registry->register(ProtocolInfo::ITEM_STACK_RESPONSE_PACKET, new ItemStackResponsePacketHandler($this->plugin));
-		$registry->register(ProtocolInfo::INTERACT_PACKET, new InteractPacketHandler($this->plugin));
-		$registry->register(ProtocolInfo::ANIMATE_PACKET, new AnimatePacketHandler($this->plugin));
-		$registry->register(ProtocolInfo::INVENTORY_TRANSACTION_PACKET, new InventoryTransactionPacketHandler($this->plugin->getTypeRegistryFactory()->getTypeRegistry()), batchOnly: true);
+		$blockMapper = $this->plugin->getRuntimeBlockMapper();
+		$itemMapper = $this->plugin->getItemRuntimeIdMapper();
+		$chunkTranslator = $this->plugin->getChunkTranslator();
+
+		$this->packetHandlers[AddItemActorPacket::ID] = new AddItemActorTranslationHandler($blockMapper);
+		$this->packetHandlers[AddPlayerPacket::ID] = new AddPlayerTranslationHandler($blockMapper);
+		$this->packetHandlers[InventoryContentPacket::ID] = new InventoryContentTranslationHandler($blockMapper);
+		$this->packetHandlers[InventorySlotPacket::ID] = new InventorySlotTranslationHandler($blockMapper);
+		$this->packetHandlers[InventoryTransactionPacket::ID] = new InventoryTransactionTranslationHandler($blockMapper);
+		$this->packetHandlers[ItemRegistryPacket::ID] = new ItemRegistryTranslationHandler($itemMapper);
+		$this->packetHandlers[MobArmorEquipmentPacket::ID] = new MobArmorEquipmentTranslationHandler($blockMapper);
+		$this->packetHandlers[MobEquipmentPacket::ID] = new MobEquipmentTranslationHandler($blockMapper);
+
+		$this->packetHandlers[LevelEventPacket::ID] = new LevelEventPacketHandler($blockMapper);
+		$this->packetHandlers[LevelSoundEventPacket::ID] = new LevelSoundEventPacketHandler($blockMapper);
+		$this->packetHandlers[UpdateBlockPacket::ID] = new UpdateBlockTranslationHandler($blockMapper);
+		$this->packetHandlers[UpdateBlockSyncedPacket::ID] = new UpdateBlockSyncedTranslationHandler($blockMapper);
+		$this->packetHandlers[UpdateSubChunkBlocksPacket::ID] = new UpdateSubChunkBlocksTranslationHandler($blockMapper);
+
+		$this->packetHandlers[LevelChunkPacket::ID] = new LevelChunkRuntimeHandler($chunkTranslator);
 	}
 
 	public function translateInbound(int $protocol, string $payload) : ?string{
-		$reader = new ByteBufferReader($payload);
+		$builderSource = Axiom::for($protocol);
+		$builderTarget = Axiom::for(ProtocolInfo::CURRENT_PROTOCOL);
 
+		$reader = new ByteBufferReader($payload);
 		$header = VarInt::readUnsignedInt($reader);
 		$packetId = $header & DataPacket::PID_MASK;
-		Debugger::log("Packet ID: " . $packetId);
-		Debugger::log("Payload HEX: " . bin2hex($payload));
-		Debugger::log("Payload LEN: " . strlen($payload));
 
-		$body = $reader->getUnreadLength() > 0
-			? $reader->readByteArray($reader->getUnreadLength())
-			: "";
-
-		$runtime = $this->runtime->get($packetId);
-
-		if($runtime !== null){
-			$body = $runtime->translateInbound($protocol, $body);
+		if($this->shouldBypass($packetId)){
+			$this->logPacket("IN ", $protocol, $packetId, "bypassed");
+			return $payload;
 		}
 
-		$result = $this->schema->translateInbound(
-			$protocol,
-			$packetId,
-			new ByteBufferReader($body)
-		);
+		$this->logPacket("IN ", $protocol, $packetId, "translating...");
 
-		if($result === null){
-			return null;
+		try{
+			$codecSource = $builderSource->get($packetId);
+			$packet = $codecSource->decode($reader, $builderSource->getCodecType());
+		}catch(\Throwable $e){
+			// Silent fallback: return original payload if decoding fails
+			return $payload;
 		}
 
-		if($result === false){
-
-			$handler = $this->manual->get($packetId);
-
-			if($handler !== null){
-				$result = $handler->translateInbound(
-					$protocol,
-					new ByteBufferReader($body)
-				);
-			}else{
-				$result = $body;
+		if(isset($this->packetHandlers[$packetId])){
+			try{
+				$this->packetHandlers[$packetId]->translate($protocol, $packet, true);
+			}catch(\Throwable $e){
+				// Ignore handler errors
 			}
 		}
 
-		$writer = new ByteBufferWriter();
-
-		VarInt::writeUnsignedInt($writer, $header);
-
-		if($result !== ""){
-			$writer->writeByteArray($result);
+		try{
+			$codecTarget = $builderTarget->get($packetId);
+			$writer = new ByteBufferWriter();
+			VarInt::writeUnsignedInt($writer, $packetId);
+			$codecTarget->encode($writer, $packet, $builderTarget->getCodecType());
+			return $writer->getData();
+		}catch(\Throwable $e){
+			return null;
 		}
-
-		return $writer->getData();
 	}
 
 	public function translateOutbound(int $protocol, string $payload) : ?string{
-		$reader = new ByteBufferReader($payload);
+		$builderSource = Axiom::for(ProtocolInfo::CURRENT_PROTOCOL);
+		$builderTarget = Axiom::for($protocol);
 
+		$reader = new ByteBufferReader($payload);
 		$header = VarInt::readUnsignedInt($reader);
 		$packetId = $header & DataPacket::PID_MASK;
-		Debugger::log("Packet ID: " . $packetId);
-		Debugger::log("Payload HEX: " . bin2hex($payload));
-		Debugger::log("Payload LEN: " . strlen($payload));
 
-		$body = $reader->getUnreadLength() > 0
-			? $reader->readByteArray($reader->getUnreadLength())
-			: "";
-
-		$runtime = $this->runtime->get($packetId);
-
-		if($runtime !== null){
-			$body = $runtime->translateOutbound($protocol, $body);
+		if($this->shouldBypass($packetId)){
+			$this->logPacket("OUT", $protocol, $packetId, "bypassed");
+			return $payload;
 		}
 
-		$result = $this->schema->translateOutbound(
-			$protocol,
-			$packetId,
-			new ByteBufferReader($body)
-		);
+		$this->logPacket("OUT", $protocol, $packetId, "translating...");
 
-		if($result === null){
-			return null;
+		try{
+			$codecSource = $builderSource->get($packetId);
+			$packet = $codecSource->decode($reader, $builderSource->getCodecType());
+		}catch(\Throwable $e){
+			// Silent fallback: return original payload if decoding fails
+			return $payload;
 		}
 
-		if($result === false){
-
-			$handler = $this->manual->get($packetId);
-
-			if($handler !== null){
-				$result = $handler->translateOutbound(
-					$protocol,
-					new ByteBufferReader($body)
-				);
-			}else{
-				$result = $body;
+		if(isset($this->packetHandlers[$packetId])){
+			try{
+				$this->packetHandlers[$packetId]->translate($protocol, $packet, false);
+			}catch(\Throwable $e){
+				// Ignore handler errors
 			}
 		}
 
-		$writer = new ByteBufferWriter();
-
-		VarInt::writeUnsignedInt($writer, $header);
-
-		if($result !== ""){
-			$writer->writeByteArray($result);
+		try{
+			$codecTarget = $builderTarget->get($packetId);
+			$writer = new ByteBufferWriter();
+			VarInt::writeUnsignedInt($writer, $packetId);
+			$codecTarget->encode($writer, $packet, $builderTarget->getCodecType());
+			return $writer->getData();
+		}catch(\Throwable $e){
+			return null;
 		}
-
-		return $writer->getData();
 	}
 
-	public function getManualRegistry() : ManualPacketRegistry{
-		return $this->manual;
+	private function logPacket(string $direction, int $protocol, int $packetId, string $extra) : void{
+		$name = $this->getPacketName($packetId);
+		Debugger::debug(TextFormat::GRAY . "  {$direction} [{$protocol}] ID:{$packetId} ({$name}) {$extra}", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
 	}
 
-	public function getSchemaRegistry() : SchemaRegistry{
-		return $this->schema->getSchemaRegistry();
+	private function getPacketName(int $pid) : string{
+		static $map = null;
+		if($map === null){
+			$map = [];
+			$ref = new \ReflectionClass(PacketIds::class);
+			foreach($ref->getConstants() as $name => $value){
+				if(is_int($value)){
+					$map[$value] = $name;
+				}
+			}
+		}
+		return $map[$pid] ?? "UNKNOWN";
 	}
 
-	public function getPlugin() : LittleBrother{
-		return $this->plugin;
+	private function shouldBypass(int $packetId) : bool{
+		return in_array($packetId, [], true);
 	}
 }

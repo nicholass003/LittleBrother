@@ -24,23 +24,16 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\Packet;
 
 interface RuntimePacketHandler{
-
-	public function translateOutbound(int $protocol, string $payload) : string;
-
-	public function translateInbound(int $protocol, string $payload) : string;
+	/**
+	 * Translate runtime IDs in the decoded packet before it is re‑encoded
+	 * for a different protocol version.
+	 *
+	 * @param int    $protocol The protocol we are translating TO
+	 * @param Packet $packet   The decoded packet object (may be modified in place)
+	 * @param bool   $inbound  true if inbound (client → server), false if outbound
+	 */
+	public function translate(int $protocol, Packet $packet, bool $inbound) : void;
 }

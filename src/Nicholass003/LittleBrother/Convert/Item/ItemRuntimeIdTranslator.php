@@ -33,16 +33,16 @@ final class ItemRuntimeIdTranslator{
 	private array $clientToServer = [];
 
 	public function __construct(
-		ItemStateDictionary $server,
-		ItemStateDictionary $client
+		private ItemStateDictionary $serverDict,
+		private ItemStateDictionary $clientDict
 	){
-		foreach($server->getAll() as $runtimeId => $stringId){
-			$clientId = $client->stringToRuntimeId($stringId);
+		foreach($serverDict->getAll() as $runtimeId => $stringId){
+			$clientId = $clientDict->stringToRuntimeId($stringId);
 			$this->serverToClient[$runtimeId] = $clientId ?? 0;
 		}
 
-		foreach($client->getAll() as $runtimeId => $stringId){
-			$serverId = $server->stringToRuntimeId($stringId);
+		foreach($clientDict->getAll() as $runtimeId => $stringId){
+			$serverId = $serverDict->stringToRuntimeId($stringId);
 			$this->clientToServer[$runtimeId] = $serverId ?? 0;
 		}
 	}
@@ -61,5 +61,37 @@ final class ItemRuntimeIdTranslator{
 	public function clientToServer(int $clientRuntimeId) : int{
 		if($clientRuntimeId === 0) return 0;
 		return $this->clientToServer[$clientRuntimeId] ?? 0;
+	}
+
+	/**
+	 * Translate string ID from client to server version.
+	 */
+	public function stringIdClientToServer(string $clientStringId) : string{
+		$clientRuntime = $this->clientDict->stringToRuntimeId($clientStringId);
+		if($clientRuntime === null){
+			return $clientStringId;
+		}
+		$serverRuntime = $this->clientToServer[$clientRuntime] ?? 0;
+		if($serverRuntime === 0){
+			return $clientStringId;
+		}
+		$serverStringId = $this->serverDict->runtimeIdToString($serverRuntime);
+		return $serverStringId ?? $clientStringId;
+	}
+
+	/**
+	 * Translate string ID from server to client version.
+	 */
+	public function stringIdServerToClient(string $serverStringId) : string{
+		$serverRuntime = $this->serverDict->stringToRuntimeId($serverStringId);
+		if($serverRuntime === null){
+			return $serverStringId;
+		}
+		$clientRuntime = $this->serverToClient[$serverRuntime] ?? 0;
+		if($clientRuntime === 0){
+			return $serverStringId;
+		}
+		$clientStringId = $this->clientDict->runtimeIdToString($clientRuntime);
+		return $clientStringId ?? $serverStringId;
 	}
 }

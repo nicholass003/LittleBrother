@@ -68,16 +68,19 @@ final class RuntimeBlockMapper{
 			if($protocol === ProtocolInfo::CURRENT_PROTOCOL){
 				continue;
 			}
-			if(isset(ProtocolVersion::PARENT_PROTOCOLS[$protocol])){
-				$protocol = ProtocolVersion::PARENT_PROTOCOLS[$protocol];
+
+			$effectiveProtocol = ProtocolVersion::PARENT_PROTOCOLS[$protocol] ?? $protocol;
+
+			if(isset($this->serverToClientTables[$effectiveProtocol])){
+				continue;
 			}
 
 			$clientDict = BlockStateDictionary::loadFromString(
-				Filesystem::fileGetContents($manager->get($protocol)->canonicalBlockStates()),
-				Filesystem::fileGetContents($manager->get($protocol)->blockStateMetaMap())
+				Filesystem::fileGetContents($manager->get($effectiveProtocol)->canonicalBlockStates()),
+				Filesystem::fileGetContents($manager->get($effectiveProtocol)->blockStateMetaMap())
 			);
 
-			$this->buildTables($protocol, $serverDict, $clientDict);
+			$this->buildTables($effectiveProtocol, $serverDict, $clientDict);
 		}
 	}
 
@@ -139,8 +142,16 @@ final class RuntimeBlockMapper{
 		}
 	}
 
+	/**
+	 * Normalizes a protocol version to its effective mapping protocol (parent if defined).
+	 */
+	private function normalizeProtocol(int $protocol) : int{
+		return ProtocolVersion::PARENT_PROTOCOLS[$protocol] ?? $protocol;
+	}
+
 	public function serverToClient(int $protocol, int $runtimeId) : int{
-		$table = $this->serverToClientTables[$protocol] ?? null;
+		$effectiveProtocol = $this->normalizeProtocol($protocol);
+		$table = $this->serverToClientTables[$effectiveProtocol] ?? null;
 
 		if($table === null){
 			return $runtimeId;
@@ -152,13 +163,14 @@ final class RuntimeBlockMapper{
 			return $mapped;
 		}
 
-		$fallback = $this->serverFallbackIds[$protocol] ?? 0;
-		Debugger::log("RuntimeBlockMapper: serverToClient id=$runtimeId not found for protocol=$protocol, fallback=$fallback");
+		$fallback = $this->serverFallbackIds[$effectiveProtocol] ?? 0;
+		Debugger::log("RuntimeBlockMapper: serverToClient id=$runtimeId not found for protocol=$protocol (effective=$effectiveProtocol), fallback=$fallback");
 		return $fallback;
 	}
 
 	public function clientToServer(int $protocol, int $runtimeId) : int{
-		$table = $this->clientToServerTables[$protocol] ?? null;
+		$effectiveProtocol = $this->normalizeProtocol($protocol);
+		$table = $this->clientToServerTables[$effectiveProtocol] ?? null;
 
 		if($table === null){
 			return $runtimeId;
@@ -170,14 +182,15 @@ final class RuntimeBlockMapper{
 			return $mapped;
 		}
 
-		$fallback = $this->clientFallbackIds[$protocol] ?? 0;
-		Debugger::log("RuntimeBlockMapper: clientToServer id=$runtimeId not found for protocol=$protocol, fallback=$fallback");
+		$fallback = $this->clientFallbackIds[$effectiveProtocol] ?? 0;
+		Debugger::log("RuntimeBlockMapper: clientToServer id=$runtimeId not found for protocol=$protocol (effective=$effectiveProtocol), fallback=$fallback");
 		return $fallback;
 	}
 
 	public function getMappingStats(int $protocol) : array{
-		$serverTable = $this->serverToClientTables[$protocol] ?? [];
-		$clientTable = $this->clientToServerTables[$protocol] ?? [];
+		$effectiveProtocol = $this->normalizeProtocol($protocol);
+		$serverTable = $this->serverToClientTables[$effectiveProtocol] ?? [];
+		$clientTable = $this->clientToServerTables[$effectiveProtocol] ?? [];
 		return [
 			'server_total' => count($serverTable),
 			'server_mapped' => count(array_filter($serverTable, fn($v) => $v !== null)),

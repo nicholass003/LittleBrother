@@ -26,6 +26,7 @@ namespace Nicholass003\LittleBrother\Utils;
 
 use Nicholass003\LittleBrother\LittleBrother;
 use pocketmine\Server;
+use pocketmine\utils\TextFormat;
 use function date;
 use function file_exists;
 use function file_put_contents;
@@ -38,14 +39,14 @@ class Debugger{
 
 	private const LOG_FILE = "debug.log";
 
-	public static function debug(string $message, bool $ignore = false) : void{
+	public static function debug(string $message, bool $ignore = false, string $color = TextFormat::GRAY) : void{
 		if($ignore){
 			return;
 		}
 		$plugin = LittleBrother::getInstance();
 		if(LittleBrother::IS_DEVELOPMENT || $plugin->isDebugEnabled){
 			$server = Server::getInstance();
-			$server->getLogger()->debug($message);
+			$server->getLogger()->debug($color . $message . TextFormat::RESET);
 		}
 	}
 
