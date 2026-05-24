@@ -24,9 +24,9 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator\Runtime;
 
-use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Data\Type\ItemStack;
-use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Data\Type\ItemStackWrapper;
-use Nicholass003\LittleBrother\libs\_89851775efbc387c\Nicholass003\Axiom\Packet\Packet;
+use Nicholass003\LittleBrother\libs\_9f202d79434159a4\Nicholass003\Axiom\Data\Type\ItemStack;
+use Nicholass003\LittleBrother\libs\_9f202d79434159a4\Nicholass003\Axiom\Data\Type\ItemStackWrapper;
+use Nicholass003\LittleBrother\libs\_9f202d79434159a4\Nicholass003\Axiom\Packet\Packet;
 use Nicholass003\LittleBrother\Convert\Block\RuntimeBlockMapper;
 use Nicholass003\LittleBrother\Protocol\Translator\RuntimePacketHandler;
 
