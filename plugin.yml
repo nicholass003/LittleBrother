@@ -1,6 +1,6 @@
 name: LittleBrother
 api: 5.43.0
-version: 2.0.0-ALPHA
+version: 2.0.1-ALPHA
 main: Nicholass003\LittleBrother\LittleBrother
 author: nicholass003
 website: https://github.com/nicholass003/LittleBrother
