@@ -105,17 +105,6 @@ class PacketBatchTranslator{
 
 				Debugger::log("Trying To Translate Packet Id: " . $packetId, $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
 
-				if(
-					$packetId === ProtocolInfo::NETWORK_SETTINGS_PACKET ||
-					$packetId === ProtocolInfo::PLAY_STATUS_PACKET ||
-					$packetId === ProtocolInfo::SERVER_TO_CLIENT_HANDSHAKE_PACKET ||
-					$packetId === ProtocolInfo::CLIENT_TO_SERVER_HANDSHAKE_PACKET ||
-					$packetId === ProtocolInfo::LOGIN_PACKET
-				){
-					$packets[] = $buffer;
-					continue;
-				}
-
 				Debugger::log("Packet size before: " . strlen($buffer), $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
 				Debugger::log("Direction: " . ($inbound ? "Client -> Server" : "Server -> Client"));
 

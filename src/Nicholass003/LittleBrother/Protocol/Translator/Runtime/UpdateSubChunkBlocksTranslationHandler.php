@@ -24,9 +24,9 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator\Runtime;
 
-use Nicholass003\LittleBrother\libs\_d1301181c37d8215\Nicholass003\Axiom\Data\Type\SubChunk\UpdateSubChunkBlocksPacketEntry;
-use Nicholass003\LittleBrother\libs\_d1301181c37d8215\Nicholass003\Axiom\Packet\Packet;
-use Nicholass003\LittleBrother\libs\_d1301181c37d8215\Nicholass003\Axiom\Packet\UpdateSubChunkBlocksPacket;
+use Nicholass003\LittleBrother\libs\_c0ff11f2a92bfb56\Nicholass003\Axiom\Data\Type\SubChunk\UpdateSubChunkBlocksPacketEntry;
+use Nicholass003\LittleBrother\libs\_c0ff11f2a92bfb56\Nicholass003\Axiom\Packet\Packet;
+use Nicholass003\LittleBrother\libs\_c0ff11f2a92bfb56\Nicholass003\Axiom\Packet\UpdateSubChunkBlocksPacket;
 use function assert;
 
 class UpdateSubChunkBlocksTranslationHandler extends RuntimeIdTranslationHandler{
