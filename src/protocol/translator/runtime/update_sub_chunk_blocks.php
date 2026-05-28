@@ -38,7 +38,7 @@ class UpdateSubChunkBlocksTranslationHandler extends RuntimeIdTranslationHandler
 		foreach($packet->layer0Updates as $v){
 			$layer0Updates[] = new UpdateSubChunkBlocksPacketEntry(
 				$v->blockPosition,
-				$this->translateBlockId($v->blockRuntimeId, $protocol, $inbound),
+				$this->translateBlockId($v->blockRuntimeId, $protocol, false),
 				$v->flags,
 				$v->syncedUpdateType,
 				$v->actorUniqueId
@@ -49,7 +49,7 @@ class UpdateSubChunkBlocksTranslationHandler extends RuntimeIdTranslationHandler
 		foreach($packet->layer1Updates as $v){
 			$layer1Updates[] = new UpdateSubChunkBlocksPacketEntry(
 				$v->blockPosition,
-				$this->translateBlockId($v->blockRuntimeId, $protocol, $inbound),
+				$this->translateBlockId($v->blockRuntimeId, $protocol, false),
 				$v->flags,
 				$v->syncedUpdateType,
 				$v->actorUniqueId
