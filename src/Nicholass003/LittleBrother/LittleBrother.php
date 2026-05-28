@@ -24,8 +24,8 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother;
 
-use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\bStats\PocketmineMp\Metrics;
-use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\CortexPE\Commando\PacketHooker;
+use Nicholass003\LittleBrother\libs\_8a901b45ccd06e3f\bStats\PocketmineMp\Metrics;
+use Nicholass003\LittleBrother\libs\_8a901b45ccd06e3f\CortexPE\Commando\PacketHooker;
 use Nicholass003\LittleBrother\Command\ProtocolCommand;
 use Nicholass003\LittleBrother\Convert\BedrockDataManager;
 use Nicholass003\LittleBrother\Convert\Block\ChunkTranslator;
@@ -42,7 +42,7 @@ use function dirname;
 class LittleBrother extends PluginBase{
 	use SingletonTrait;
 
-	public const IS_DEVELOPMENT = true;
+	public const IS_DEVELOPMENT = false;
 
 	private ProtocolStorage $protocolStorage;
 	private PacketTranslator $translator;

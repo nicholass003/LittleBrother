@@ -1,0 +1,29 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Nicholass003\LittleBrother\libs\_8a901b45ccd06e3f\Nicholass003\Axiom\Codec\v844;
+
+use Nicholass003\LittleBrother\libs\_8a901b45ccd06e3f\Nicholass003\Axiom\Codec\Codec;
+use Nicholass003\LittleBrother\libs\_8a901b45ccd06e3f\Nicholass003\Axiom\Codec\CodecHelper;
+use Nicholass003\LittleBrother\libs\_8a901b45ccd06e3f\Nicholass003\Axiom\Codec\CodecType;
+use Nicholass003\LittleBrother\libs\_8a901b45ccd06e3f\Nicholass003\Axiom\Packet\Packet;
+use Nicholass003\LittleBrother\libs\_8a901b45ccd06e3f\Nicholass003\Axiom\Packet\SettingsCommandPacket;
+use pmmp\encoding\ByteBufferReader;
+use pmmp\encoding\ByteBufferWriter;
+
+class SettingsCommandCodec implements Codec{
+
+    public function decode(ByteBufferReader $in, CodecType $codec) : SettingsCommandPacket{
+        $pk = new SettingsCommandPacket();
+        $pk->command = CodecHelper::readString($in);
+        $pk->suppressOutput = CodecHelper::readBool($in);
+        return $pk;
+    }
+
+    public function encode(ByteBufferWriter $out, Packet $pk, CodecType $codec) : void{
+        assert($pk instanceof SettingsCommandPacket);
+        CodecHelper::writeString($out, $pk->command);
+        CodecHelper::writeBool($out, $pk->suppressOutput);
+    }
+}
