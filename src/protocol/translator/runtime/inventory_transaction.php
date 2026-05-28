@@ -87,15 +87,6 @@ class InventoryTransactionTranslationHandler extends ItemStackWrapperTranslation
 		$actions = $this->translateActions($data->actions, $protocol, $inbound);
 		$itemInHand = $this->translateWrapper($data->itemInHand, $protocol, $inbound);
 
-		$blockRuntimeId = $data->blockRuntimeId;
-		if($blockRuntimeId !== 0){
-			if($inbound){
-				$blockRuntimeId = $this->blockMapper->clientToServer($protocol, $blockRuntimeId);
-			}else{
-				$blockRuntimeId = $this->blockMapper->serverToClient($protocol, $blockRuntimeId);
-			}
-		}
-
 		return new UseItemTransactionData(
 			actions: $actions,
 			actionType: $data->actionType,
@@ -106,7 +97,7 @@ class InventoryTransactionTranslationHandler extends ItemStackWrapperTranslation
 			itemInHand: $itemInHand,
 			playerPosition: $data->playerPosition,
 			clickPosition: $data->clickPosition,
-			blockRuntimeId: $data->blockRuntimeId,
+			blockRuntimeId: $this->translateBlockId($data->blockRuntimeId, $protocol, $inbound),
 			clientInteractPrediction: $data->clientInteractPrediction,
 			clientCooldownState: $data->clientCooldownState
 		);
