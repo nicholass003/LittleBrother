@@ -52,17 +52,11 @@ abstract class ItemStackWrapperTranslationHandler extends RuntimeIdTranslationHa
 			return $wrapper; // keep as is
 		}
 
-		// Map blockRuntimeId (only if non‑zero)
-		$newBlockRuntimeId = $stack->blockRuntimeId;
-		if($newBlockRuntimeId !== 0){
-			$newBlockRuntimeId = $this->translateBlockId($newBlockRuntimeId, $protocol, $inbound);
-		}
-
 		$newStack = new ItemStack(
 			$stack->id,
 			$stack->meta,
 			$stack->count,
-			$newBlockRuntimeId,
+			$this->translateBlockId($stack->blockRuntimeId, $protocol, $inbound),
 			$stack->rawExtraData
 		);
 
