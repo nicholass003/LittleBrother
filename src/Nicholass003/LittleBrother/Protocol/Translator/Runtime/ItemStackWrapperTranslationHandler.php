@@ -24,9 +24,9 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator\Runtime;
 
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Data\Type\ItemStack;
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Data\Type\ItemStackWrapper;
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Packet\Packet;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Data\Type\ItemStack;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Data\Type\ItemStackWrapper;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Packet\Packet;
 
 abstract class ItemStackWrapperTranslationHandler extends RuntimeIdTranslationHandler{
 
@@ -52,17 +52,11 @@ abstract class ItemStackWrapperTranslationHandler extends RuntimeIdTranslationHa
 			return $wrapper; // keep as is
 		}
 
-		// Map blockRuntimeId (only if non‑zero)
-		$newBlockRuntimeId = $stack->blockRuntimeId;
-		if($newBlockRuntimeId !== 0){
-			$newBlockRuntimeId = $this->translateBlockId($newBlockRuntimeId, $protocol, $inbound);
-		}
-
 		$newStack = new ItemStack(
 			$stack->id,
 			$stack->meta,
 			$stack->count,
-			$newBlockRuntimeId,
+			$this->translateBlockId($stack->blockRuntimeId, $protocol, $inbound),
 			$stack->rawExtraData
 		);
 

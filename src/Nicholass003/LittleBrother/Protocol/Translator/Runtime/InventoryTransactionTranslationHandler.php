@@ -24,13 +24,13 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator\Runtime;
 
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Data\Type\Inventory\NetworkInventoryAction;
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Data\Type\Inventory\ReleaseItemTransactionData;
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Data\Type\Inventory\TransactionData;
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Data\Type\Inventory\UseItemOnEntityTransactionData;
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Data\Type\Inventory\UseItemTransactionData;
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Packet\InventoryTransactionPacket;
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Packet\Packet;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Data\Type\Inventory\NetworkInventoryAction;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Data\Type\Inventory\ReleaseItemTransactionData;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Data\Type\Inventory\TransactionData;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Data\Type\Inventory\UseItemOnEntityTransactionData;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Data\Type\Inventory\UseItemTransactionData;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Packet\InventoryTransactionPacket;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Packet\Packet;
 use function assert;
 
 class InventoryTransactionTranslationHandler extends ItemStackWrapperTranslationHandler{
@@ -87,15 +87,6 @@ class InventoryTransactionTranslationHandler extends ItemStackWrapperTranslation
 		$actions = $this->translateActions($data->actions, $protocol, $inbound);
 		$itemInHand = $this->translateWrapper($data->itemInHand, $protocol, $inbound);
 
-		$blockRuntimeId = $data->blockRuntimeId;
-		if($blockRuntimeId !== 0){
-			if($inbound){
-				$blockRuntimeId = $this->blockMapper->clientToServer($protocol, $blockRuntimeId);
-			}else{
-				$blockRuntimeId = $this->blockMapper->serverToClient($protocol, $blockRuntimeId);
-			}
-		}
-
 		return new UseItemTransactionData(
 			actions: $actions,
 			actionType: $data->actionType,
@@ -106,7 +97,7 @@ class InventoryTransactionTranslationHandler extends ItemStackWrapperTranslation
 			itemInHand: $itemInHand,
 			playerPosition: $data->playerPosition,
 			clickPosition: $data->clickPosition,
-			blockRuntimeId: $data->blockRuntimeId,
+			blockRuntimeId: $this->translateBlockId($data->blockRuntimeId, $protocol, $inbound),
 			clientInteractPrediction: $data->clientInteractPrediction,
 			clientCooldownState: $data->clientCooldownState
 		);

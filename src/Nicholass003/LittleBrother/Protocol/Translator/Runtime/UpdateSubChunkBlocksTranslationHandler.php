@@ -24,9 +24,9 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator\Runtime;
 
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Data\Type\SubChunk\UpdateSubChunkBlocksPacketEntry;
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Packet\Packet;
-use Nicholass003\LittleBrother\libs\_8dd6646aaad8bd5e\Nicholass003\Axiom\Packet\UpdateSubChunkBlocksPacket;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Data\Type\SubChunk\UpdateSubChunkBlocksPacketEntry;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Packet\Packet;
+use Nicholass003\LittleBrother\libs\_4cc5c80e6bc7f669\Nicholass003\Axiom\Packet\UpdateSubChunkBlocksPacket;
 use function assert;
 
 class UpdateSubChunkBlocksTranslationHandler extends RuntimeIdTranslationHandler{
@@ -38,7 +38,7 @@ class UpdateSubChunkBlocksTranslationHandler extends RuntimeIdTranslationHandler
 		foreach($packet->layer0Updates as $v){
 			$layer0Updates[] = new UpdateSubChunkBlocksPacketEntry(
 				$v->blockPosition,
-				$this->translateBlockId($v->blockRuntimeId, $protocol, $inbound),
+				$this->translateBlockId($v->blockRuntimeId, $protocol, false),
 				$v->flags,
 				$v->syncedUpdateType,
 				$v->actorUniqueId
@@ -49,7 +49,7 @@ class UpdateSubChunkBlocksTranslationHandler extends RuntimeIdTranslationHandler
 		foreach($packet->layer1Updates as $v){
 			$layer1Updates[] = new UpdateSubChunkBlocksPacketEntry(
 				$v->blockPosition,
-				$this->translateBlockId($v->blockRuntimeId, $protocol, $inbound),
+				$this->translateBlockId($v->blockRuntimeId, $protocol, false),
 				$v->flags,
 				$v->syncedUpdateType,
 				$v->actorUniqueId
