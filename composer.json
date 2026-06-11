@@ -6,7 +6,7 @@
         "pocketmine/pocketmine-mp": "^5.0.0",
         "bstats/pocketmine-mp": "^1.0.0",
         "paroxity/commando": "dev-master",
-        "nicholass003/axiom": "~1.0.1"
+        "nicholass003/axiom": "~1.0.2"
     },
     "require-dev": {
         "sof3/pharynx": "^0.3.6"
