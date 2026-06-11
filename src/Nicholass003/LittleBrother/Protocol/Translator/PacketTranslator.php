@@ -24,24 +24,24 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator;
 
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Axiom;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\AddActorPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\AddItemActorPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\AddPlayerPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\CreativeContentPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\InventoryContentPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\InventorySlotPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\InventoryTransactionPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\ItemRegistryPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\LevelChunkPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\LevelEventPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\LevelSoundEventPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\MobArmorEquipmentPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\MobEquipmentPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\PacketIds;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\UpdateBlockPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\UpdateBlockSyncedPacket;
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\UpdateSubChunkBlocksPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Axiom;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\AddActorPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\AddItemActorPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\AddPlayerPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\CreativeContentPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\InventoryContentPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\InventorySlotPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\InventoryTransactionPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\ItemRegistryPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\LevelChunkPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\LevelEventPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\LevelSoundEventPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\MobArmorEquipmentPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\MobEquipmentPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\PacketIds;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\UpdateBlockPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\UpdateBlockSyncedPacket;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\UpdateSubChunkBlocksPacket;
 use Nicholass003\LittleBrother\LittleBrother;
 use Nicholass003\LittleBrother\Protocol\Translator\Runtime\AddActorTranslationHandler;
 use Nicholass003\LittleBrother\Protocol\Translator\Runtime\AddItemActorTranslationHandler;
@@ -130,9 +130,9 @@ final class PacketTranslator{
 
 		$packetId = $header & DataPacket::PID_MASK;
 
-		Debugger::debug("[STRICT][INBOUND] Packet ID: {$packetId}", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-		Debugger::debug("[STRICT][INBOUND] Packet name: " . $this->getPacketName($packetId), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-		Debugger::debug("[STRICT][INBOUND] Remaining bytes before decode: " . $reader->getUnreadLength(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+		Debugger::debug("[STRICT][INBOUND] Packet ID: {$packetId}", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+		Debugger::debug("[STRICT][INBOUND] Packet name: " . $this->getPacketName($packetId), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+		Debugger::debug("[STRICT][INBOUND] Remaining bytes before decode: " . $reader->getUnreadLength(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 		if($this->shouldBypass($packetId)){
 			$this->logPacket("IN ", $protocol, $packetId, "bypassed");
@@ -144,41 +144,41 @@ final class PacketTranslator{
 		try{
 			$codecSource = $builderSource->get($packetId);
 
-			Debugger::debug("[STRICT][INBOUND] Codec source: " . get_debug_type($codecSource), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug("[STRICT][INBOUND] Codec source: " . get_debug_type($codecSource), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 			$packet = $codecSource->decode($reader, $builderSource->getCodecType());
 
-			Debugger::debug("[STRICT][INBOUND] Decode success: " . get_debug_type($packet), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-			Debugger::debug("[STRICT][INBOUND] Remaining bytes after decode: " . $reader->getUnreadLength(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug("[STRICT][INBOUND] Decode success: " . get_debug_type($packet), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+			Debugger::debug("[STRICT][INBOUND] Remaining bytes after decode: " . $reader->getUnreadLength(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 			if($reader->getUnreadLength() > 0){
-				Debugger::debug(TextFormat::YELLOW . "[STRICT][INBOUND] WARNING: Packet not fully consumed for {$packetId}", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-				Debugger::log(TextFormat::YELLOW . "[STRICT][INBOUND] Remaining hex: " . bin2hex($reader->readByteArray($reader->getUnreadLength())), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+				Debugger::debug(TextFormat::YELLOW . "[STRICT][INBOUND] WARNING: Packet not fully consumed for {$packetId}", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+				Debugger::log(TextFormat::YELLOW . "[STRICT][INBOUND] Remaining hex: " . bin2hex($reader->readByteArray($reader->getUnreadLength())), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 			}
 		}catch(\Throwable $e){
-			Debugger::debug(TextFormat::RED . "[ERROR] Inbound decode failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-			Debugger::debug(TextFormat::RED . "[STRICT][INBOUND] Trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-			Debugger::debug(TextFormat::RED . "[STRICT][INBOUND] Payload(base64): " . base64_encode($payload), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug(TextFormat::RED . "[ERROR] Inbound decode failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+			Debugger::debug(TextFormat::RED . "[STRICT][INBOUND] Trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+			Debugger::debug(TextFormat::RED . "[STRICT][INBOUND] Payload(base64): " . base64_encode($payload), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 			return $payload;
 		}
 
 		if(isset($this->packetHandlers[$packetId])){
 			try{
-				Debugger::debug("[STRICT][INBOUND] Handler: " . get_debug_type($this->packetHandlers[$packetId]), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+				Debugger::debug("[STRICT][INBOUND] Handler: " . get_debug_type($this->packetHandlers[$packetId]), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 				$this->packetHandlers[$packetId]->translate($protocol, $packet, true);
 
-				Debugger::debug("[STRICT][INBOUND] Handler translation success", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+				Debugger::debug("[STRICT][INBOUND] Handler translation success", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 			}catch(\Throwable $e){
-				Debugger::debug(TextFormat::RED . "[ERROR] Inbound handler failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-				Debugger::debug(TextFormat::RED . "[STRICT][INBOUND] Handler trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+				Debugger::debug(TextFormat::RED . "[ERROR] Inbound handler failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+				Debugger::debug(TextFormat::RED . "[STRICT][INBOUND] Handler trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 			}
 		}
 
 		try{
 			$codecTarget = $builderTarget->get($packetId);
 
-			Debugger::debug("[STRICT][INBOUND] Codec target: " . get_debug_type($codecTarget), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug("[STRICT][INBOUND] Codec target: " . get_debug_type($codecTarget), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 			$writer = new ByteBufferWriter();
 			VarInt::writeUnsignedInt($writer, $packetId);
@@ -186,13 +186,13 @@ final class PacketTranslator{
 
 			$data = $writer->getData();
 
-			Debugger::debug("[STRICT][INBOUND] Encoded length: " . strlen($data), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-			Debugger::log("[STRICT][INBOUND] Encoded hex: " . bin2hex($data), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug("[STRICT][INBOUND] Encoded length: " . strlen($data), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+			Debugger::log("[STRICT][INBOUND] Encoded hex: " . bin2hex($data), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 			return $data;
 		}catch(\Throwable $e){
-			Debugger::debug(TextFormat::RED . "[ERROR] Inbound encode failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-			Debugger::debug(TextFormat::RED . "[STRICT][INBOUND] Encode trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug(TextFormat::RED . "[ERROR] Inbound encode failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+			Debugger::debug(TextFormat::RED . "[STRICT][INBOUND] Encode trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 			return null;
 		}
 	}
@@ -218,9 +218,9 @@ final class PacketTranslator{
 
 		$packetId = $header & DataPacket::PID_MASK;
 
-		Debugger::debug("[STRICT][OUTBOUND] Packet ID: {$packetId}", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-		Debugger::debug("[STRICT][OUTBOUND] Packet name: " . $this->getPacketName($packetId), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-		Debugger::debug("[STRICT][OUTBOUND] Remaining bytes before decode: " . $reader->getUnreadLength(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+		Debugger::debug("[STRICT][OUTBOUND] Packet ID: {$packetId}", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+		Debugger::debug("[STRICT][OUTBOUND] Packet name: " . $this->getPacketName($packetId), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+		Debugger::debug("[STRICT][OUTBOUND] Remaining bytes before decode: " . $reader->getUnreadLength(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 		if($this->shouldBypass($packetId)){
 			$this->logPacket("OUT", $protocol, $packetId, "bypassed");
@@ -232,41 +232,41 @@ final class PacketTranslator{
 		try{
 			$codecSource = $builderSource->get($packetId);
 
-			Debugger::debug("[STRICT][OUTBOUND] Codec source: " . get_debug_type($codecSource), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug("[STRICT][OUTBOUND] Codec source: " . get_debug_type($codecSource), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 			$packet = $codecSource->decode($reader, $builderSource->getCodecType());
 
-			Debugger::debug("[STRICT][OUTBOUND] Decode success: " . get_debug_type($packet), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-			Debugger::debug("[STRICT][OUTBOUND] Remaining bytes after decode: " . $reader->getUnreadLength(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug("[STRICT][OUTBOUND] Decode success: " . get_debug_type($packet), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+			Debugger::debug("[STRICT][OUTBOUND] Remaining bytes after decode: " . $reader->getUnreadLength(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 			if($reader->getUnreadLength() > 0){
-				Debugger::debug(TextFormat::YELLOW . "[STRICT][OUTBOUND] WARNING: Packet not fully consumed for {$packetId}", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-				Debugger::log(TextFormat::YELLOW . "[STRICT][OUTBOUND] Remaining hex: " . bin2hex($reader->readByteArray($reader->getUnreadLength())), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+				Debugger::debug(TextFormat::YELLOW . "[STRICT][OUTBOUND] WARNING: Packet not fully consumed for {$packetId}", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+				Debugger::log(TextFormat::YELLOW . "[STRICT][OUTBOUND] Remaining hex: " . bin2hex($reader->readByteArray($reader->getUnreadLength())), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 			}
 		}catch(\Throwable $e){
-			Debugger::debug(TextFormat::RED . "[ERROR] Outbound decode failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-			Debugger::debug(TextFormat::RED . "[STRICT][OUTBOUND] Trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-			Debugger::debug(TextFormat::RED . "[STRICT][OUTBOUND] Payload(base64): " . base64_encode($payload), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug(TextFormat::RED . "[ERROR] Outbound decode failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+			Debugger::debug(TextFormat::RED . "[STRICT][OUTBOUND] Trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+			Debugger::debug(TextFormat::RED . "[STRICT][OUTBOUND] Payload(base64): " . base64_encode($payload), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 			return $payload;
 		}
 
 		if(isset($this->packetHandlers[$packetId])){
 			try{
-				Debugger::debug("[STRICT][OUTBOUND] Handler: " . get_debug_type($this->packetHandlers[$packetId]), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+				Debugger::debug("[STRICT][OUTBOUND] Handler: " . get_debug_type($this->packetHandlers[$packetId]), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 				$this->packetHandlers[$packetId]->translate($protocol, $packet, false);
 
-				Debugger::debug("[STRICT][OUTBOUND] Handler translation success", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+				Debugger::debug("[STRICT][OUTBOUND] Handler translation success", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 			}catch(\Throwable $e){
-				Debugger::debug(TextFormat::RED . "[ERROR] Outbound handler failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-				Debugger::debug(TextFormat::RED . "[STRICT][OUTBOUND] Handler trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+				Debugger::debug(TextFormat::RED . "[ERROR] Outbound handler failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+				Debugger::debug(TextFormat::RED . "[STRICT][OUTBOUND] Handler trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 			}
 		}
 
 		try{
 			$codecTarget = $builderTarget->get($packetId);
 
-			Debugger::debug("[STRICT][OUTBOUND] Codec target: " . get_debug_type($codecTarget), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug("[STRICT][OUTBOUND] Codec target: " . get_debug_type($codecTarget), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 			$writer = new ByteBufferWriter();
 			VarInt::writeUnsignedInt($writer, $packetId);
@@ -274,20 +274,20 @@ final class PacketTranslator{
 
 			$data = $writer->getData();
 
-			Debugger::debug("[STRICT][OUTBOUND] Encoded length: " . strlen($data), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-			Debugger::log("[STRICT][OUTBOUND] Encoded hex: " . bin2hex($data), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug("[STRICT][OUTBOUND] Encoded length: " . strlen($data), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+			Debugger::log("[STRICT][OUTBOUND] Encoded hex: " . bin2hex($data), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 
 			return $data;
 		}catch(\Throwable $e){
-			Debugger::debug(TextFormat::RED . "[ERROR] Outbound encode failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
-			Debugger::debug(TextFormat::RED . "[STRICT][OUTBOUND] Encode trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+			Debugger::debug(TextFormat::RED . "[ERROR] Outbound encode failed for packet ID {$packetId} (protocol {$protocol}): " . $e->getMessage(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
+			Debugger::debug(TextFormat::RED . "[STRICT][OUTBOUND] Encode trace: " . $e->getTraceAsString(), ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 			return null;
 		}
 	}
 
 	private function logPacket(string $direction, int $protocol, int $packetId, string $extra) : void{
 		$name = $this->getPacketName($packetId);
-		Debugger::debug(TextFormat::GRAY . "  {$direction} [{$protocol}] ID:{$packetId} ({$name}) {$extra}", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT);
+		Debugger::debug(TextFormat::GRAY . "  {$direction} [{$protocol}] ID:{$packetId} ({$name}) {$extra}", ignore: $packetId === PacketIds::PLAYER_AUTH_INPUT || $packetId === PacketIds::LEVEL_CHUNK);
 	}
 
 	private function getPacketName(int $pid) : string{

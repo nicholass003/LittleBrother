@@ -24,7 +24,7 @@ declare(strict_types=1);
 
 namespace Nicholass003\LittleBrother\Protocol\Translator;
 
-use Nicholass003\LittleBrother\libs\_86ef34ea2444fabf\Nicholass003\Axiom\Packet\Packet;
+use Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Packet\Packet;
 
 interface RuntimePacketHandler{
 	/**

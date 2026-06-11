@@ -1,0 +1,14 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Nicholass003\LittleBrother\libs\_4cca2350a8ef3979\Nicholass003\Axiom\Data\Type\SubChunk;
+
+class SubChunkPosition{
+
+    public function __construct(
+        public readonly int $x,
+        public readonly int $y,
+        public readonly int $z
+    ){}
+}
