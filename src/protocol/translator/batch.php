@@ -103,9 +103,9 @@ class PacketBatchTranslator{
 				$header = VarInt::readUnsignedInt($packetReader);
 				$packetId = $header & DataPacket::PID_MASK;
 
-				Debugger::log("Trying To Translate Packet Id: " . $packetId, $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
+				Debugger::log("Trying To Translate Packet Id: " . $packetId, $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET || $packetId === ProtocolInfo::LEVEL_CHUNK_PACKET);
 
-				Debugger::log("Packet size before: " . strlen($buffer), $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
+				Debugger::log("Packet size before: " . strlen($buffer), $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET || $packetId === ProtocolInfo::LEVEL_CHUNK_PACKET);
 				Debugger::log("Direction: " . ($inbound ? "Client -> Server" : "Server -> Client"));
 
 				$translated = $inbound ? $this->translator->translateInbound(
@@ -118,7 +118,7 @@ class PacketBatchTranslator{
 
 				if($translated !== null){
 					$buffer = $translated;
-					Debugger::log("Packet size after: " . strlen($buffer), $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET);
+					Debugger::log("Packet size after: " . strlen($buffer), $packetId === ProtocolInfo::PLAYER_AUTH_INPUT_PACKET || $packetId === ProtocolInfo::LEVEL_CHUNK_PACKET);
 				}
 
 				$packets[] = $buffer;
