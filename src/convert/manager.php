@@ -74,6 +74,10 @@ final class BedrockDataManager{
 		);
 	}
 
+	public function getDataPath() : string{
+		return $this->dataPath;
+	}
+
 	public function getSupportedProtocols() : array{
 		return array_keys($this->protocolDirs);
 	}

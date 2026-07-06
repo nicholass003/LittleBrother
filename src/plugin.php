@@ -26,6 +26,7 @@ namespace Nicholass003\LittleBrother;
 
 use bStats\PocketmineMp\Metrics;
 use CortexPE\Commando\PacketHooker;
+use Nicholass003\Axiom\Registry\LevelSoundTypeRegistry;
 use Nicholass003\LittleBrother\Command\ProtocolCommand;
 use Nicholass003\LittleBrother\Convert\BedrockDataManager;
 use Nicholass003\LittleBrother\Convert\Block\ChunkTranslator;
@@ -36,8 +37,10 @@ use Nicholass003\LittleBrother\Protocol\Translator\PacketBatchTranslator;
 use Nicholass003\LittleBrother\Protocol\Translator\PacketTranslator;
 use Nicholass003\LittleBrother\Utils\Debugger;
 use pocketmine\plugin\PluginBase;
+use pocketmine\utils\Filesystem;
 use pocketmine\utils\SingletonTrait;
 use function dirname;
+use function json_decode;
 
 class LittleBrother extends PluginBase{
 	use SingletonTrait;
@@ -87,6 +90,10 @@ class LittleBrother extends PluginBase{
 
 		$this->protocolStorage = new ProtocolStorage();
 		$this->packetBatchTranslator = new PacketBatchTranslator($this->translator);
+
+		LevelSoundTypeRegistry::loadMappings(
+			json_decode(Filesystem::fileGetContents($this->bedrockDataManager->getDataPath() . "/bedrock/level_sound_id_map.json"), true)
+		);
 
 		$this->getServer()->getPluginManager()->registerEvents(new EventListener($this), $this);
 
