@@ -1,11 +1,11 @@
 name: LittleBrother
-api: 5.43.0
-version: 2.1.0-ALPHA
+api: 5.44.0
+version: 2.2.0-ALPHA
 main: Nicholass003\LittleBrother\LittleBrother
 author: nicholass003
 website: https://github.com/nicholass003/LittleBrother
 description: Bedrock protocol compatibility layer for PocketMine-MP.
-mcpe-protocol: [975]
+mcpe-protocol: [1001]
 permissions:
   littlebrother.command:
     default: true
