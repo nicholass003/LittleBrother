@@ -13,7 +13,7 @@ LittleBrother provides a runtime-based protocol translation layer that allows cl
 
 | Protocol | Minecraft Version | Notes                         |
 | -------- | ----------------- | ----------------------------- |
-| 975      | 1.26.20           | Native PocketMine-MP protocol |
+| 1001      | 1.26.30          | Native PocketMine-MP protocol |
 
 The native protocol corresponds to the version used by the running PocketMine-MP server.
 
@@ -23,7 +23,7 @@ The native protocol corresponds to the version used by the running PocketMine-MP
 
 | Protocol | Minecraft Version | Status                   |
 | -------- | ----------------- | ------------------------ |
-| 1001     | 1.26.30           | Supported                |
+| 975      | 1.26.20           | Supported                |
 | 944      | 1.26.10           | Supported                |
 | 924      | 1.26.0            | Supported                |
 | 898      | 1.21.130          | Supported                |
