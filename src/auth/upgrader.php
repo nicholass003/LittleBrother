@@ -31,6 +31,7 @@ final class ClientDataUpgrader{
 	 */
 	public static function upgrade(array &$claims) : void{
 		$claims["FilterProfanity"] ??= false;
-		$claims["IsEditorMode"] ??= false; //v1001
+		$claims["ClientEditorConnectionIntent"] ??= 0;
+		$claims["ClientIsEditorCapable"] ??= false;
 	}
 }
