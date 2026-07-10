@@ -9,4 +9,3 @@ mcpe-protocol: [1001]
 permissions:
   littlebrother.command:
     default: true
-  
