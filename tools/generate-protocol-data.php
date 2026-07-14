@@ -26,6 +26,7 @@ declare(strict_types=1);
 use pocketmine\data\bedrock\block\BlockStateData;
 use pocketmine\errorhandler\ErrorToExceptionHandler;
 use pocketmine\nbt\BigEndianNbtSerializer;
+use pocketmine\nbt\LittleEndianNbtSerializer;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\TreeRoot;
 use pocketmine\network\mcpe\protocol\serializer\NetworkNbtSerializer;
@@ -147,9 +148,14 @@ foreach($versions as $protocol => $dataset){
 					$token
 				);
 
+				$itemComponentsNbt = githubFetch(
+					"https://raw.githubusercontent.com/Kaooot/bedrock-network-data/master/release/$networkVersion/item_components.nbt",
+					$token
+				);
+
 				file_put_contents(
 					$requiredPath,
-					json_encode(generateRequiredItemListFromString($itemPalette), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+					json_encode(generateRequiredItemListFromString($itemPalette, $itemComponentsNbt), JSON_PRETTY_PRINT)
 				);
 			}
 
@@ -235,27 +241,50 @@ function generateMetaMap(string $nbtPath) : array {
 	return $meta;
 }
 
-function generateRequiredItemListFromString(string $json) : array{
+/**
+ * @param string $json              String JSON from item_palette.json
+ * @param string $itemComponentsNbt Binary NBT data from item_components.nbt
+ * @return array
+ */
+function generateRequiredItemListFromString(string $json, string $itemComponentsNbt) : array{
 	$data = json_decode($json, true);
 
 	if(!isset($data["items"])){
 		return [];
 	}
 
-	$items = $data["items"];
+	$decompressed = ErrorToExceptionHandler::trapAndRemoveFalse(fn() => zlib_decode($itemComponentsNbt));
 
-	usort($items, fn($a,$b) => strcmp($a["name"], $b["name"]));
+	$serializer = new BigEndianNbtSerializer();
+	$root = $serializer->read($decompressed)->mustGetCompoundTag();
+	$emptyNBT = new CompoundTag();
+	$componentMap = [];
+	foreach($root->getValue() as $itemName => $componentsTag){
+		if(!$emptyNBT->equals($componentsTag)){
+			/** @var CompoundTag $componentsTag */
+			$componentNBT = CompoundTag::create()->setTag("components", $componentsTag->getCompoundTag("components"));
+			$componentMap[$itemName] = base64_encode((new LittleEndianNbtSerializer())->write(new TreeRoot($componentNBT)));
+		}
+	}
+
+	$items = $data["items"];
+	usort($items, fn($a, $b) => strcmp($a["name"], $b["name"]));
 
 	$result = [];
 
 	foreach($items as $item){
 		$name = $item["name"];
+		$hasComponent = $item["component_based"] ?? false;
 
 		$result[$name] = [
 			"runtime_id" => $item["id"] ?? 0,
-			"component_based" => false,
-			"version" => 2
+			"component_based" => $hasComponent,
+			"version" => $item["version"] ?? 2
 		];
+
+		if($hasComponent && isset($componentMap[$name])){
+			$result[$name]["component_nbt"] = $componentMap[$name];
+		}
 	}
 
 	return $result;
