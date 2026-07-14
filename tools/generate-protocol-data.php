@@ -282,7 +282,7 @@ function generateRequiredItemListFromString(string $json, string $itemComponents
 			"version" => $item["version"] ?? 2
 		];
 
-		if($hasComponent && isset($componentMap[$name])){
+		if(isset($componentMap[$name])){
 			$result[$name]["component_nbt"] = $componentMap[$name];
 		}
 	}
