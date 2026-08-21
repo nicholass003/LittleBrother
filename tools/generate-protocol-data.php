@@ -92,7 +92,7 @@ foreach($versions as $protocol => $dataset){
 			echo "  fetching canonical_block_states\n";
 			file_put_contents(
 				$canonicalPath,
-				githubFetch("https://raw.githubusercontent.com/pmmp/BedrockData/$bedrockBranch/canonical_block_states.nbt", $token)
+				githubFetch("https://raw.githubusercontent.com/axolotl-pm/BedrockData/$bedrockBranch/canonical_block_states.nbt", $token)
 			);
 		}
 
@@ -100,7 +100,7 @@ foreach($versions as $protocol => $dataset){
 			echo "  fetching block_state_meta_map\n";
 			file_put_contents(
 				$metaPath,
-				githubFetch("https://raw.githubusercontent.com/pmmp/BedrockData/$bedrockBranch/block_state_meta_map.json", $token)
+				githubFetch("https://raw.githubusercontent.com/axolotl-pm/BedrockData/$bedrockBranch/block_state_meta_map.json", $token)
 			);
 		}
 
@@ -108,7 +108,7 @@ foreach($versions as $protocol => $dataset){
 			echo "  fetching required_item_list\n";
 			file_put_contents(
 				$requiredPath,
-				githubFetch("https://raw.githubusercontent.com/pmmp/BedrockData/$bedrockBranch/required_item_list.json", $token)
+				githubFetch("https://raw.githubusercontent.com/axolotl-pm/BedrockData/$bedrockBranch/required_item_list.json", $token)
 			);
 		}
 
